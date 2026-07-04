@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: robinhood
+Description: A hash table with Robin Hood open-addressing insertion and backward-shift deletion
+Version: @VERSION@
+Libs: -L${libdir} -lrobinhood -lm
+Cflags: -I${includedir}

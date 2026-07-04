@@ -1,0 +1,33 @@
+name: CI
+
+# Runs on every push and pull request. The committed configure/Makefile.in
+# mean no autotools bootstrap step is needed here -- this mirrors the
+# "git clone && ./configure && make" path any consumer gets.
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: ./configure
+
+      - name: Build
+        run: make
+
+      - name: Test
+        run: make test
+
+      # Apple's ASan doesn't support LeakSanitizer, so ubuntu-latest is
+      # the leg that actually catches leaks; the macos-latest leg still
+      # catches heap overflows/UB, just not leaks.
+      - name: Sanitize (ASan + UBSan)
+        run: make sanitize

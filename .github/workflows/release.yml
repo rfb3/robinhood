@@ -1,0 +1,70 @@
+name: Release
+
+# Tag-triggered: push a "vX.Y.Z" tag to cut a release. configure.ac's
+# AC_INIT is the single source of truth for the version (see
+# robinhood.pc.in/Makefile.am, which already derive from it) -- this
+# workflow doesn't introduce a second one, it just checks the tag agrees
+# with it before publishing anything.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches configure.ac's version
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          ac_version=$(grep -m1 '^AC_INIT' configure.ac \
+                       | sed -E 's/.*\[([0-9]+\.[0-9]+(\.[0-9]+)?)\].*/\1/')
+          if [ "$tag_version" != "$ac_version" ]; then
+            echo "Tag $GITHUB_REF_NAME (version $tag_version) doesn't" \
+                 "match configure.ac's AC_INIT version ($ac_version)" >&2
+            exit 1
+          fi
+
+      # `make dist` regenerates aclocal.m4/configure/Makefile.in if it
+      # thinks they're stale relative to configure.ac/Makefile.am --
+      # which a fresh `actions/checkout` can trigger purely from mtime
+      # skew (git doesn't preserve timestamps), regardless of the
+      # AM_MAINTAINER_MODE guard that keeps the *ordinary* make/make
+      # check path (see ci.yml) from needing this. Installing autotools
+      # here isn't a fix, either: the version that generated the
+      # committed files (locally, via Homebrew) is newer than what
+      # Ubuntu's package repos carry, so a regeneration attempt would
+      # look for an aclocal/automake binary that doesn't exist in this
+      # image. Fixing the mtimes so the regeneration rule never fires at
+      # all sidesteps the version question entirely -- touch oldest
+      # (sources) to newest (generated), in three waits so mtimes are
+      # strictly ordered even on filesystems with 1-second resolution.
+      - name: Fix generated-file timestamps
+        run: |
+          touch -c configure.ac Makefile.am m4/*.m4
+          sleep 1
+          touch -c aclocal.m4
+          sleep 1
+          touch -c configure Makefile.in
+
+      - name: Configure
+        run: ./configure
+
+      - name: Build source tarball
+        run: make dist
+
+      - name: Checksum
+        run: sha256sum robinhood-*.tar.gz > SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            robinhood-*.tar.gz
+            SHA256SUMS
+          generate_release_notes: true

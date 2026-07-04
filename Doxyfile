@@ -1,0 +1,17 @@
+# Doxyfile for robinhood -- deliberately minimal: only settings that
+# differ from Doxygen's own defaults are listed here. Run `doxygen -g -`
+# to see the full set of defaults this relies on. Generate docs with
+# `make docs` (see Makefile); output goes to docs/html/index.html.
+
+PROJECT_NAME           = "robinhood"
+PROJECT_BRIEF          = "Robin Hood open-addressing hash table"
+
+INPUT                  = README.md include/robinhood.h
+USE_MDFILE_AS_MAINPAGE = README.md
+
+OUTPUT_DIRECTORY       = docs
+GENERATE_LATEX         = NO
+
+EXTRACT_STATIC         = NO
+WARN_IF_UNDOCUMENTED   = YES
+QUIET                  = YES
