@@ -222,6 +222,13 @@ browsable HTML report at `coverage-html/index.html`. Both are optional
 -- not part of `make`/`make test` -- and `make clean` removes their
 output.
 
+The same HTML report is published at
+[rfb3.github.io/robinhood/coverage][gh-pages-coverage] -- rebuilt and
+redeployed alongside the Doxygen docs on every push to `main` (see
+`.github/workflows/docs.yml`).
+
+[gh-pages-coverage]: https://rfb3.github.io/robinhood/coverage/
+
 ## Example programs
 
 Six small programs exercise the library in different ways -- `scan`,
