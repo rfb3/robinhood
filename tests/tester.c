@@ -163,8 +163,8 @@ static const struct test tests [] =
     { "iteration",        test_iteration },
     { "lifecycle",        test_lifecycle },
     { "probe_stats",      test_probe_stats },
-    { "warning_handler",  test_warning_handler },
     { "resize_threshold", test_resize_threshold },
+    { "warning_handler",  test_warning_handler },
 };
 
 #define TEST_COUNT (sizeof (tests) / sizeof (tests [0]))
