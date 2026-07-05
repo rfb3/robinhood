@@ -280,13 +280,13 @@ redeployed alongside the Doxygen docs on every push to `main` (see
 ## Project status
 
 The directory layout, the autoconf/automake/libtool build, `make
-install`/`make uninstall`, and the license are all settled now. One
-thing worth knowing: `scan` parses its command-line options with
+install`/`make uninstall`, and the license are all stable. One thing
+worth knowing: `scan` parses its command-line options with
 `getopt_long()` (a GNU extension, not part of POSIX, but present on
-macOS, the BSDs, glibc, and musl) -- `./configure` checks for it, along
-with the POSIX and BSD features the library and example programs need,
-and fails with a clear message if your toolchain is missing any of
-them.
+macOS, the BSDs, glibc, and musl) -- `./configure` checks for it,
+along with the POSIX and BSD features the library and example programs
+need, and fails with a clear message if your toolchain is missing any
+of them.
 
 ## Further reading
 
