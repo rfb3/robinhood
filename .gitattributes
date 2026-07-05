@@ -1,6 +1,8 @@
-# Autotools-generated shell infrastructure (do NOT count toward language stats)
-configure linguist-generated=true
+# --- Autotools generated / infrastructure (exclude from language stats) ---
 
+configure linguist-generated=true
+Makefile.in linguist-generated=true
 aclocal.m4 linguist-generated=true
+
 m4/** linguist-generated=true
 build-aux/** linguist-generated=true
