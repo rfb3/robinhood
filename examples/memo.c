@@ -18,8 +18,8 @@
 // Type definitions
 // File-local prototypes
 // fib_memo(RHTable,int,struct fib_stats*)
-// print_usage(const char*)
 // main(int,char**)
+// print_usage(const char*)
 
 //
 // Headers, etc.
@@ -102,31 +102,6 @@ fib_memo (RHTable           table,
     rh_set (table, key, stored);
 
     return result;
-}
-
-//
-// print_usage(const char*)
-//
-
-static
-void
-print_usage (const char* program_name)
-{
-    fprintf (stderr,
-             "usage: %s [--resize-threshold PERCENT] <n>\n"
-             "\n"
-             "Computes fib(n) via recursion memoized in an RHTable"
-             " (key: n as a\n"
-             "decimal string; value: a heap-allocated uint64_t)."
-             " Demonstrates\n"
-             "rh_has/rh_get/rh_set as a cache, and rh_clear as"
-             " invalidation.\n"
-             "n must be an integer in [0, 90] (fib(91) would overflow"
-             " uint64_t).\n"
-             "--resize-threshold PERCENT sets the table's resize"
-             " threshold (1-100,\n"
-             "default 80) -- see rh_set_resize_threshold().\n",
-             program_name);
 }
 
 //
@@ -264,4 +239,29 @@ main (int    argc,
     rh_destroy (&table);
 
     return 0;
+}
+
+//
+// print_usage(const char*)
+//
+
+static
+void
+print_usage (const char* program_name)
+{
+    fprintf (stderr,
+             "usage: %s [--resize-threshold PERCENT] <n>\n"
+             "\n"
+             "Computes fib(n) via recursion memoized in an RHTable"
+             " (key: n as a\n"
+             "decimal string; value: a heap-allocated uint64_t)."
+             " Demonstrates\n"
+             "rh_has/rh_get/rh_set as a cache, and rh_clear as"
+             " invalidation.\n"
+             "n must be an integer in [0, 90] (fib(91) would overflow"
+             " uint64_t).\n"
+             "--resize-threshold PERCENT sets the table's resize"
+             " threshold (1-100,\n"
+             "default 80) -- see rh_set_resize_threshold().\n",
+             program_name);
 }
