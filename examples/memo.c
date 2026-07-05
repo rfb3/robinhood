@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct fib_stats
+struct fibonacci_stats
 {
     size_t hits;
     size_t misses;
@@ -22,7 +22,7 @@ struct fib_stats
 // ===========================================================================
 
 static uint64_t
-fib_memo(RHTable table, int n, struct fib_stats* stats);
+fibonacci_memo(RHTable table, int n, struct fibonacci_stats* stats);
 
 int
 main(int argc, char** argv);
@@ -34,7 +34,7 @@ print_usage(const char* program_name);
 // cache as it does for bulk-loading a directory tree (see
 // scan.c/tester.c).
 static uint64_t
-fib_memo(RHTable table, int n, struct fib_stats* stats)
+fibonacci_memo(RHTable table, int n, struct fibonacci_stats* stats)
 {
     char key [16];
     snprintf(key, sizeof(key), "%d", n);
@@ -55,8 +55,8 @@ fib_memo(RHTable table, int n, struct fib_stats* stats)
     }
     else
     {
-        result =
-            fib_memo(table, n - 1, stats) + fib_memo(table, n - 2, stats);
+        result = fibonacci_memo(table, n - 1, stats) +
+                 fibonacci_memo(table, n - 2, stats);
     }
 
     uint64_t* stored = (uint64_t*)(malloc(sizeof(uint64_t)));
@@ -94,13 +94,13 @@ main(int argc, char** argv)
 
     RHTable table = rh_create(16);
 
-    struct fib_stats stats;
+    struct fibonacci_stats stats;
     stats.hits   = 0;
     stats.misses = 0;
 
-    uint64_t result = fib_memo(table, (int)n, &stats);
+    uint64_t result = fibonacci_memo(table, (int)n, &stats);
 
-    printf("fib(%ld) = %llu\n", n, (unsigned long long int)result);
+    printf("fibonacci(%ld) = %llu\n", n, (unsigned long long int)result);
     printf("cache after first computation: %zu entries, %zu hits,"
            " %zu misses\n",
            rh_count(table), stats.hits, stats.misses);
@@ -114,23 +114,24 @@ main(int argc, char** argv)
         stats.hits   = 0;
         stats.misses = 0;
 
-        uint64_t cached_value = fib_memo(table, k, &stats);
+        uint64_t cached_value = fibonacci_memo(table, k, &stats);
 
-        printf("\nfib(%d) looked up again: %llu"
+        printf("\nfibonacci(%d) looked up again: %llu"
                " (%zu hit%s, %zu miss%s)\n",
                k, (unsigned long long int)cached_value, stats.hits,
                (stats.hits == 1) ? "" : "s", stats.misses,
                (stats.misses == 1) ? "" : "es");
 
-        printf("invalidating fib(%d) via rh_clear...\n", k);
+        printf("invalidating fibonacci(%d) via rh_clear...\n", k);
         rh_clear(table, k_key);
 
         stats.hits   = 0;
         stats.misses = 0;
 
-        uint64_t recomputed = fib_memo(table, k, &stats);
+        uint64_t recomputed = fibonacci_memo(table, k, &stats);
 
-        printf("fib(%d) recomputed: %llu (%zu hit%s, %zu miss%s)\n", k,
+        printf("fibonacci(%d) recomputed: %llu (%zu hit%s, %zu miss%s)\n",
+               k,
                (unsigned long long int)recomputed, stats.hits,
                (stats.hits == 1) ? "" : "s", stats.misses,
                (stats.misses == 1) ? "" : "es");
@@ -163,13 +164,13 @@ print_usage(const char* program_name)
     fprintf(stderr,
             "usage: %s <n>\n"
             "\n"
-            "Computes fib(n) via recursion memoized in an RHTable"
+            "Computes fibonacci(n) via recursion memoized in an RHTable"
             " (key: n as a\n"
             "decimal string; value: a heap-allocated uint64_t)."
             " Demonstrates\n"
             "rh_has/rh_get/rh_set as a cache, and rh_clear as"
             " invalidation.\n"
-            "n must be an integer in [0, 90] (fib(91) would overflow"
-            " uint64_t).\n",
+            "n must be an integer in [0, 90] (fibonacci(91) would"
+            " overflow uint64_t).\n",
             program_name);
 }

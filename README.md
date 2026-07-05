@@ -65,10 +65,10 @@ patterns instead of one superseding the others:
   href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a> for that and
   other real-world timings, including scans of an entire home
   directory and root filesystem.
-- `memo <n>` (`./memo`) -- computes `fib(n)` via recursion memoized in the
-  table, demonstrating it as a cache: `rh_has`/`rh_get` for lookups,
-  `rh_set` to populate a miss, and `rh_clear` to invalidate one entry
-  and show the resulting partial recompute.
+- `memo <n>` (`./memo`) -- computes `fibonacci(n)` via recursion
+  memoized in the table, demonstrating it as a cache: `rh_has`/`rh_get`
+  for lookups, `rh_set` to populate a miss, and `rh_clear` to
+  invalidate one entry and show the resulting partial recompute.
 - `wordfreq [top_n]` (`./wordfreq`) -- reads words from stdin, case-
   folds and trims punctuation, and counts occurrences via a genuine
   read-modify-write (`rh_get` the current count, increment, `rh_set` it

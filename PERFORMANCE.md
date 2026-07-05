@@ -224,11 +224,11 @@ times (`time.perf_counter()` around the whole process, median of 10):
 **2.5ms**, almost entirely process startup — the actual computation is
 immeasurably fast at this scale.
 
-For contrast, a naive (non-memoized) recursive `fib()` was timed
+For contrast, a naive (non-memoized) recursive `fibonacci()` was timed
 separately (`user` time, to exclude process-startup noise; `real` time
 was inconsistent run-to-run at these small scales):
 
-| n | naive `fib(n)` user time |
+| n | naive `fibonacci(n)` user time |
 |---:|---:|
 | 35 | 0.02s |
 | 40 | 0.30s |
@@ -237,12 +237,12 @@ was inconsistent run-to-run at these small scales):
 The growth ratio between these points (1.63x–1.72x per step) matches the
 theoretical expectation for unmemoized Fibonacci recursion (the golden
 ratio, φ≈1.618, per step) closely enough to extrapolate with it:
-naive `fib(90)` would take on the order of **270 years** of CPU time
-(0.80s × φ⁴⁸). This is an extrapolation, not a measurement — nobody ran
-naive `fib(90)` to completion — but the fit between the measured growth
-rate and the theoretical one is close enough (within ~6%) to trust the
-order of magnitude. `memo`'s entire reason to exist is collapsing that
-into 2.5ms.
+naive `fibonacci(90)` would take on the order of **270 years** of CPU
+time (0.80s × φ⁴⁸). This is an extrapolation, not a measurement —
+nobody ran naive `fibonacci(90)` to completion — but the fit between
+the measured growth rate and the theoretical one is close enough
+(within ~6%) to trust the order of magnitude. `memo`'s entire reason to
+exist is collapsing that into 2.5ms.
 
 ### `wordfreq`: real-corpus throughput, and a case-folding sanity check
 
