@@ -3,31 +3,6 @@
 //
 // SPDX-License-Identifier: Unlicense
 //
-
-//
-// Table of Contents
-//
-// This file uses the ASCII "form feed" character (Control-L) to delineate
-// logical pages. This table of contents is collected from the first non-blank
-// lines on each logical page.
-//
-
-// scan.c - part of robinhood, a hash table with Robin Hood insertion
-// Table of Contents
-// Headers, etc.
-// Type definitions
-// File-local prototypes
-// main(int,char**)
-// path_is_excluded(const char*,const char**,size_t)
-// print_probe_stats(const struct RHProbeStats*)
-// print_usage(const char*)
-// store_entry(RHTable,const char*,const struct stat*)
-// walk(int,const char*,struct scan_context*,const struct ancestor*)
-// walk_body(int,const char*,struct scan_context*,const struct ancestor*)
-
-//
-// Headers, etc.
-//
 
 // Precedes all #includes so glibc won't mask openat/fstatat/fdopendir.
 #define _XOPEN_SOURCE 700
@@ -47,10 +22,6 @@
 #include <unistd.h>
 
 #include <sys/stat.h>
-
-//
-// Type definitions
-//
 
 // Detects symlink cycles when following symlinks: if a candidate
 // directory's (device, inode) matches an ancestor already on this
@@ -73,62 +44,48 @@ struct scan_context
     size_t       excludes_count;
     RHTable      table;
 
-    char         path_buffer [PATH_MAX];
-    size_t       path_length;
+    char   path_buffer [PATH_MAX];
+    size_t path_length;
 
-    size_t       unreadable_count;
-    size_t       excluded_root_count;
+    size_t unreadable_count;
+    size_t excluded_root_count;
 };
-
-//
+
+// ===========================================================================
 // File-local prototypes
-//
+// ===========================================================================
 
 int
-main (int    argc,
-      char** argv);
+main(int argc, char** argv);
 
-static
-bool
-path_is_excluded (const char*  path,
-                  const char** excludes,
-                  size_t       excludes_count);
+static bool
+path_is_excluded(const char*  path,
+                 const char** excludes,
+                 size_t       excludes_count);
 
-static
-void
-print_probe_stats (const struct RHProbeStats* stats);
+static void
+print_probe_stats(const struct RHProbeStats* stats);
 
-static
-void
-print_usage (const char* program_name);
+static void
+print_usage(const char* program_name);
 
-static
-void
-store_entry (RHTable            table,
-             const char*        path,
-             const struct stat* entry_stat);
+static void
+store_entry(RHTable table, const char* path, const struct stat* entry_stat);
 
-static
-void
-walk (int                    dir_fd,
-      const char*            name,
-      struct scan_context*   context,
-      const struct ancestor* parent);
+static void
+walk(int                    dir_fd,
+     const char*            name,
+     struct scan_context*   context,
+     const struct ancestor* parent);
 
-static
-void
-walk_body (int                    dir_fd,
-           const char*            name,
-           struct scan_context*   context,
-           const struct ancestor* parent);
-
-//
-// main(int,char**)
-//
+static void
+walk_body(int                    dir_fd,
+          const char*            name,
+          struct scan_context*   context,
+          const struct ancestor* parent);
 
 int
-main (int    argc,
-      char** argv)
+main(int argc, char** argv)
 {
     bool         cross_mounts          = false;
     bool         follow_symlinks       = false;
@@ -148,62 +105,60 @@ main (int    argc,
         OPT_RESIZE_THRESHOLD
     };
 
-    static const struct option long_options [] =
-    {
-        { "cross-mounts",     no_argument,       NULL, OPT_CROSS_MOUNTS },
-        { "follow-symlinks",  no_argument,       NULL, OPT_FOLLOW_SYMLINKS },
-        { "exclude",          required_argument, NULL, OPT_EXCLUDE },
-        { "probe-stats",      no_argument,       NULL, OPT_PROBE_STATS },
-        { "resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD },
-        { "help",             no_argument,       NULL, 'h' },
-        { NULL,               0,                 NULL, 0 }
-    };
+    static const struct option long_options [] = {
+        {"cross-mounts", no_argument, NULL, OPT_CROSS_MOUNTS},
+        {"follow-symlinks", no_argument, NULL, OPT_FOLLOW_SYMLINKS},
+        {"exclude", required_argument, NULL, OPT_EXCLUDE},
+        {"probe-stats", no_argument, NULL, OPT_PROBE_STATS},
+        {"resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD},
+        {"help", no_argument, NULL, 'h'},
+        {NULL, 0, NULL, 0}};
 
     opterr = 0;
 
     int opt;
-    while ((opt = getopt_long (argc, argv, "h", long_options, NULL)) != -1)
+    while ((opt = getopt_long(argc, argv, "h", long_options, NULL)) != -1)
     {
         switch (opt)
         {
-            case OPT_CROSS_MOUNTS:
-                cross_mounts = true;
-                break;
-            case OPT_FOLLOW_SYMLINKS:
-                follow_symlinks = true;
-                break;
-            case OPT_PROBE_STATS:
-                probe_stats = true;
-                break;
-            case OPT_RESIZE_THRESHOLD:
-                resize_threshold = (unsigned int)(strtoul (optarg, NULL, 10));
-                have_resize_threshold = true;
-                break;
-            case OPT_EXCLUDE:
+        case OPT_CROSS_MOUNTS:
+            cross_mounts = true;
+            break;
+        case OPT_FOLLOW_SYMLINKS:
+            follow_symlinks = true;
+            break;
+        case OPT_PROBE_STATS:
+            probe_stats = true;
+            break;
+        case OPT_RESIZE_THRESHOLD:
+            resize_threshold      = (unsigned int)(strtoul(optarg, NULL, 10));
+            have_resize_threshold = true;
+            break;
+        case OPT_EXCLUDE:
+        {
+            const char** grown = (const char**)(realloc(
+                excludes, (excludes_count + 1) * sizeof(const char*)));
+
+            if (grown == NULL)
             {
-                const char** grown = (const char**)(realloc (
-                    excludes, (excludes_count + 1) * sizeof (const char*)));
-
-                if (grown == NULL)
-                {
-                    fprintf (stderr, "%s: out of memory\n", argv [0]);
-                    free (excludes);
-                    return 1;
-                }
-
-                excludes = grown;
-                excludes [excludes_count] = optarg;
-                ++excludes_count;
-                break;
+                fprintf(stderr, "%s: out of memory\n", argv [0]);
+                free(excludes);
+                return 1;
             }
-            case 'h':
-                print_usage (argv [0]);
-                free (excludes);
-                return 0;
-            default:
-                print_usage (argv [0]);
-                free (excludes);
-                return 2;
+
+            excludes                  = grown;
+            excludes [excludes_count] = optarg;
+            ++excludes_count;
+            break;
+        }
+        case 'h':
+            print_usage(argv [0]);
+            free(excludes);
+            return 0;
+        default:
+            print_usage(argv [0]);
+            free(excludes);
+            return 2;
         }
     }
 
@@ -215,35 +170,35 @@ main (int    argc,
 
     if ((root == NULL) || (optind != argc))
     {
-        print_usage (argv [0]);
-        free (excludes);
+        print_usage(argv [0]);
+        free(excludes);
         return 2;
     }
 
     struct stat root_stat;
-    int root_stat_flags = follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
-    int root_stat_result
-        = fstatat (AT_FDCWD, root, &root_stat, root_stat_flags);
+    int         root_stat_flags = follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
+    int         root_stat_result =
+        fstatat(AT_FDCWD, root, &root_stat, root_stat_flags);
 
     if (root_stat_result != 0)
     {
-        fprintf (stderr, "%s: cannot stat '%s': %s\n",
-                 argv [0], root, strerror (errno));
-        free (excludes);
+        fprintf(stderr, "%s: cannot stat '%s': %s\n", argv [0], root,
+                strerror(errno));
+        free(excludes);
         return 1;
     }
 
-    RHTable table = rh_create (1024);
+    RHTable table = rh_create(1024);
 
-    if (have_resize_threshold
-        && !rh_set_resize_threshold (table, resize_threshold))
+    if (have_resize_threshold &&
+        !rh_set_resize_threshold(table, resize_threshold))
     {
-        fprintf (stderr,
-                 "%s: invalid --resize-threshold value '%u'"
-                 " (must be 1-100)\n",
-                 argv [0], resize_threshold);
-        rh_destroy (&table);
-        free (excludes);
+        fprintf(stderr,
+                "%s: invalid --resize-threshold value '%u'"
+                " (must be 1-100)\n",
+                argv [0], resize_threshold);
+        rh_destroy(&table);
+        free(excludes);
         return 2;
     }
 
@@ -260,79 +215,72 @@ main (int    argc,
     context.excluded_root_count = 0;
 
     struct timespec start;
-    clock_gettime (CLOCK_MONOTONIC, &start);
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
-    walk (AT_FDCWD, root, &context, NULL);
+    walk(AT_FDCWD, root, &context, NULL);
 
     struct timespec end;
-    clock_gettime (CLOCK_MONOTONIC, &end);
+    clock_gettime(CLOCK_MONOTONIC, &end);
 
-    double elapsed_seconds
-        = ((double)(end.tv_sec - start.tv_sec))
-        + ((double)(end.tv_nsec - start.tv_nsec)) / 1e9;
+    double elapsed_seconds = ((double)(end.tv_sec - start.tv_sec)) +
+                             ((double)(end.tv_nsec - start.tv_nsec)) / 1e9;
 
-    printf ("%s: %zu entries, capacity %zu, %.3f seconds"
-            " (cross_mounts=%s, follow_symlinks=%s, excludes=%zu,"
-            " unreadable=%zu, excluded_roots=%zu, resize_threshold=%u)\n",
-            root, rh_count (table), rh_capacity (table), elapsed_seconds,
-            cross_mounts ? "yes" : "no", follow_symlinks ? "yes" : "no",
-            excludes_count, context.unreadable_count,
-            context.excluded_root_count, rh_resize_threshold (table));
+    printf("%s: %zu entries, capacity %zu, %.3f seconds"
+           " (cross_mounts=%s, follow_symlinks=%s, excludes=%zu,"
+           " unreadable=%zu, excluded_roots=%zu, resize_threshold=%u)\n",
+           root, rh_count(table), rh_capacity(table), elapsed_seconds,
+           cross_mounts ? "yes" : "no", follow_symlinks ? "yes" : "no",
+           excludes_count, context.unreadable_count,
+           context.excluded_root_count, rh_resize_threshold(table));
 
     if (probe_stats)
     {
         struct timespec stats_start;
-        clock_gettime (CLOCK_MONOTONIC, &stats_start);
+        clock_gettime(CLOCK_MONOTONIC, &stats_start);
 
         struct RHProbeStats stats;
-        rh_probe_stats (table, &stats);
+        rh_probe_stats(table, &stats);
 
         struct timespec stats_end;
-        clock_gettime (CLOCK_MONOTONIC, &stats_end);
+        clock_gettime(CLOCK_MONOTONIC, &stats_end);
 
-        double stats_seconds
-            = ((double)(stats_end.tv_sec - stats_start.tv_sec))
-            + ((double)(stats_end.tv_nsec - stats_start.tv_nsec)) / 1e9;
+        double stats_seconds =
+            ((double)(stats_end.tv_sec - stats_start.tv_sec)) +
+            ((double)(stats_end.tv_nsec - stats_start.tv_nsec)) / 1e9;
 
-        print_probe_stats (&stats);
-        printf ("probe stats computed in %.6f seconds\n", stats_seconds);
+        print_probe_stats(&stats);
+        printf("probe stats computed in %.6f seconds\n", stats_seconds);
     }
 
     RHIterator it;
 
-    for (it = rhi_create (table); !rhi_is_finished (it); rhi_advance (it))
+    for (it = rhi_create(table); !rhi_is_finished(it); rhi_advance(it))
     {
-        free (rh_get (table, rhi_key (it), NULL));
+        free(rh_get(table, rhi_key(it), NULL));
     }
 
-    rhi_destroy (it);
-    rh_destroy (&table);
-    free (excludes);
+    rhi_destroy(it);
+    rh_destroy(&table);
+    free(excludes);
 
     return 0;
 }
-
-//
-// path_is_excluded(const char*,const char**,size_t)
-//
 
-static
-bool
-path_is_excluded (const char*  path,
-                  const char** excludes,
-                  size_t       excludes_count)
+static bool
+path_is_excluded(const char*  path,
+                 const char** excludes,
+                 size_t       excludes_count)
 {
     for (size_t index = 0; index < excludes_count; ++index)
     {
-        size_t prefix_length = strlen (excludes [index]);
+        size_t prefix_length = strlen(excludes [index]);
 
-        if (strncmp (path, excludes [index], prefix_length) != 0)
+        if (strncmp(path, excludes [index], prefix_length) != 0)
         {
             continue;
         }
 
-        if ((path [prefix_length] == '\0')
-            || (path [prefix_length] == '/'))
+        if ((path [prefix_length] == '\0') || (path [prefix_length] == '/'))
         {
             return true;
         }
@@ -340,105 +288,83 @@ path_is_excluded (const char*  path,
 
     return false;
 }
-
-//
-// print_probe_stats(const struct RHProbeStats*)
-//
 
-static
-void
-print_probe_stats (const struct RHProbeStats* stats)
+static void
+print_probe_stats(const struct RHProbeStats* stats)
 {
-    printf ("probe depth: mean=%.2f stddev=%.2f max=%zu (n=%zu)\n",
-            stats->mean_distance, stats->stddev_distance,
-            stats->max_distance, stats->count);
+    printf("probe depth: mean=%.2f stddev=%.2f max=%zu (n=%zu)\n",
+           stats->mean_distance, stats->stddev_distance, stats->max_distance,
+           stats->count);
 
     for (size_t index = 0; index < RH_PROBE_HISTOGRAM_BUCKETS; ++index)
     {
-        double percent
-            = (stats->count == 0) ? 0.0
-              : (100.0 * (double)(stats->histogram [index])
-                 / (double)(stats->count));
+        double percent = (stats->count == 0)
+                             ? 0.0
+                             : (100.0 * (double)(stats->histogram [index]) /
+                                (double)(stats->count));
 
         if (index == (RH_PROBE_HISTOGRAM_BUCKETS - 1))
         {
-            printf ("  distance %zu+: %zu (%.1f%%)\n",
-                    index, stats->histogram [index], percent);
+            printf("  distance %zu+: %zu (%.1f%%)\n", index,
+                   stats->histogram [index], percent);
         }
         else
         {
-            printf ("  distance %zu: %zu (%.1f%%)\n",
-                    index, stats->histogram [index], percent);
+            printf("  distance %zu: %zu (%.1f%%)\n", index,
+                   stats->histogram [index], percent);
         }
     }
 }
-
-//
-// print_usage(const char*)
-//
 
-static
-void
-print_usage (const char* program_name)
+static void
+print_usage(const char* program_name)
 {
-    fprintf (stderr,
-             "usage: %s [--cross-mounts] [--follow-symlinks]"
-             " [--exclude PATH]...\n"
-             "       [--probe-stats] [--resize-threshold PERCENT]"
-             " <directory>\n"
-             "\n"
-             "  --cross-mounts     do not stop at filesystem/mount"
-             " boundaries.\n"
-             "                     Default: stay on the starting"
-             " filesystem.\n"
-             "  --follow-symlinks  follow symlinked directories instead"
-             " of\n"
-             "                     treating them as leaves. Default: do"
-             " not.\n"
-             "  --exclude PATH     skip this path and everything under"
-             " it.\n"
-             "                     Repeatable.\n"
-             "  --probe-stats      print Robin Hood probe-depth"
-             " statistics (mean,\n"
-             "                     max, stddev, a histogram) after the"
-             " scan.\n"
-             "                     Default: don't -- see PERFORMANCE.md"
-             " for why\n"
-             "                     that's the default despite negligible"
-             " overhead.\n"
-             "  --resize-threshold PERCENT\n"
-             "                     load factor (1-100) at which the"
-             " table grows.\n"
-             "                     Default: 80 -- see"
-             " rh_set_resize_threshold().\n",
-             program_name);
+    fprintf(stderr,
+            "usage: %s [--cross-mounts] [--follow-symlinks]"
+            " [--exclude PATH]...\n"
+            "       [--probe-stats] [--resize-threshold PERCENT]"
+            " <directory>\n"
+            "\n"
+            "  --cross-mounts     do not stop at filesystem/mount"
+            " boundaries.\n"
+            "                     Default: stay on the starting"
+            " filesystem.\n"
+            "  --follow-symlinks  follow symlinked directories instead"
+            " of\n"
+            "                     treating them as leaves. Default: do"
+            " not.\n"
+            "  --exclude PATH     skip this path and everything under"
+            " it.\n"
+            "                     Repeatable.\n"
+            "  --probe-stats      print Robin Hood probe-depth"
+            " statistics (mean,\n"
+            "                     max, stddev, a histogram) after the"
+            " scan.\n"
+            "                     Default: don't -- see PERFORMANCE.md"
+            " for why\n"
+            "                     that's the default despite negligible"
+            " overhead.\n"
+            "  --resize-threshold PERCENT\n"
+            "                     load factor (1-100) at which the"
+            " table grows.\n"
+            "                     Default: 80 -- see"
+            " rh_set_resize_threshold().\n",
+            program_name);
 }
 
-
-//
-// store_entry(RHTable,const char*,const struct stat*)
-//
-
-static
-void
-store_entry (RHTable            table,
-             const char*        path,
-             const struct stat* entry_stat)
+static void
+store_entry(RHTable table, const char* path, const struct stat* entry_stat)
 {
-    struct stat* stat_copy = (struct stat*)(malloc (sizeof (struct stat)));
+    struct stat* stat_copy = (struct stat*)(malloc(sizeof(struct stat)));
 
     if (stat_copy == NULL)
     {
         return;
     }
 
-    memcpy (stat_copy, entry_stat, sizeof (struct stat));
-    rh_set (table, path, stat_copy);
+    memcpy(stat_copy, entry_stat, sizeof(struct stat));
+    rh_set(table, path, stat_copy);
 }
-
-//
-// walk(int,const char*,struct scan_context*,const struct ancestor*)
-//
 
 // Manages a single shared path buffer (`context->path_buffer`) instead of
 // building a fresh string per call: appends `name` before recursing into
@@ -450,18 +376,16 @@ store_entry (RHTable            table,
 // workload; see PERFORMANCE.md.) Safe to mutate the buffer after handing
 // a path to store_entry(): rh_set() copies the key string itself, so the
 // table never holds a pointer into this shared, mutable buffer.
-static
-void
-walk (int                    dir_fd,
-      const char*            name,
-      struct scan_context*   context,
-      const struct ancestor* parent)
+static void
+walk(int                    dir_fd,
+     const char*            name,
+     struct scan_context*   context,
+     const struct ancestor* parent)
 {
-    size_t saved_length = context->path_length;
-    size_t name_length  = strlen (name);
-    bool   need_slash
-        = (saved_length > 0)
-          && (context->path_buffer [saved_length - 1] != '/');
+    size_t saved_length  = context->path_length;
+    size_t name_length   = strlen(name);
+    bool   need_slash    = (saved_length > 0) &&
+                           (context->path_buffer [saved_length - 1] != '/');
     size_t needed_length = saved_length + (need_slash ? 1 : 0) + name_length;
 
     if (needed_length >= PATH_MAX)
@@ -477,18 +401,14 @@ walk (int                    dir_fd,
         *(dest++) = '/';
     }
 
-    memcpy (dest, name, name_length + 1);
+    memcpy(dest, name, name_length + 1);
     context->path_length = needed_length;
 
-    walk_body (dir_fd, name, context, parent);
+    walk_body(dir_fd, name, context, parent);
 
-    context->path_length = saved_length;
+    context->path_length                = saved_length;
     context->path_buffer [saved_length] = '\0';
 }
-
-//
-// walk_body(int,const char*,struct scan_context*,const struct ancestor*)
-//
 
 // Does the actual per-entry work for the path walk() just appended to
 // `context->path_buffer`. `name` is resolved via `fstatat`/`openat`
@@ -498,26 +418,24 @@ walk (int                    dir_fd,
 // by a syscall itself. Failures (stat, opendir) are local to the
 // entry/subtree they occur on -- unlike nftw on this platform, one bad
 // entry can't abort the whole scan.
-static
-void
-walk_body (int                    dir_fd,
-           const char*            name,
-           struct scan_context*   context,
-           const struct ancestor* parent)
+static void
+walk_body(int                    dir_fd,
+          const char*            name,
+          struct scan_context*   context,
+          const struct ancestor* parent)
 {
     const char* full_path = context->path_buffer;
 
-    if (path_is_excluded (full_path,
-                           context->excludes,
-                           context->excludes_count))
+    if (path_is_excluded(full_path, context->excludes,
+                         context->excludes_count))
     {
         ++context->excluded_root_count;
         return;
     }
 
     struct stat entry_stat;
-    int stat_flags = context->follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
-    int stat_result = fstatat (dir_fd, name, &entry_stat, stat_flags);
+    int stat_flags  = context->follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
+    int stat_result = fstatat(dir_fd, name, &entry_stat, stat_flags);
 
     if (stat_result != 0)
     {
@@ -525,29 +443,27 @@ walk_body (int                    dir_fd,
         return;
     }
 
-    bool crosses_mount
-        = (!context->cross_mounts)
-          && (entry_stat.st_dev != context->root_device);
+    bool crosses_mount = (!context->cross_mounts) &&
+                         (entry_stat.st_dev != context->root_device);
 
-    store_entry (context->table, full_path, &entry_stat);
+    store_entry(context->table, full_path, &entry_stat);
 
-    if (crosses_mount || !S_ISDIR (entry_stat.st_mode))
+    if (crosses_mount || !S_ISDIR(entry_stat.st_mode))
     {
         return;
     }
 
-    for (const struct ancestor* ancestor = parent;
-         ancestor != NULL;
-         ancestor = ancestor->parent)
+    for (const struct ancestor* ancestor = parent; ancestor != NULL;
+         ancestor                        = ancestor->parent)
     {
-        if ((ancestor->device == entry_stat.st_dev)
-            && (ancestor->inode == entry_stat.st_ino))
+        if ((ancestor->device == entry_stat.st_dev) &&
+            (ancestor->inode == entry_stat.st_ino))
         {
             return;
         }
     }
 
-    int child_dir_fd = openat (dir_fd, name, O_RDONLY | O_DIRECTORY);
+    int child_dir_fd = openat(dir_fd, name, O_RDONLY | O_DIRECTORY);
 
     if (child_dir_fd < 0)
     {
@@ -555,11 +471,11 @@ walk_body (int                    dir_fd,
         return;
     }
 
-    DIR* directory = fdopendir (child_dir_fd);
+    DIR* directory = fdopendir(child_dir_fd);
 
     if (directory == NULL)
     {
-        close (child_dir_fd);
+        close(child_dir_fd);
         ++context->unreadable_count;
         return;
     }
@@ -571,16 +487,16 @@ walk_body (int                    dir_fd,
 
     struct dirent* entry;
 
-    while ((entry = readdir (directory)) != NULL)
+    while ((entry = readdir(directory)) != NULL)
     {
-        if ((strcmp (entry->d_name, ".") == 0)
-            || (strcmp (entry->d_name, "..") == 0))
+        if ((strcmp(entry->d_name, ".") == 0) ||
+            (strcmp(entry->d_name, "..") == 0))
         {
             continue;
         }
 
-        walk (child_dir_fd, entry->d_name, context, &self);
+        walk(child_dir_fd, entry->d_name, context, &self);
     }
 
-    closedir (directory);
+    closedir(directory);
 }

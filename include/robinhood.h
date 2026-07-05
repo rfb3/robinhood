@@ -3,25 +3,6 @@
 //
 // SPDX-License-Identifier: Unlicense
 //
-
-//
-// Table of Contents
-//
-// This file uses the ASCII "form feed" character (Control-L) to delineate
-// logical pages. This table of contents is collected from the first non-blank
-// lines on each logical page.
-//
-
-// robinhood.h - part of robinhood, a hash table with Robin Hood insertion
-// Table of Contents
-// Headers, etc.
-// Table operations
-// Iterator operations
-// Global configuration
-
-//
-// Headers, etc.
-//
 
 ///
 /// @file
@@ -41,17 +22,17 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-
-//
+
+// ===========================================================================
 // Table operations
-//
+// ===========================================================================
 
 ///
 /// Opaque handle to a hash table. Create with rh_create() and release
 /// with rh_destroy(). All other rh_*() functions expect a valid,
 /// non-NULL handle.
 ///
-typedef struct RHTable_struct*    RHTable;
+typedef struct RHTable_struct* RHTable;
 
 ///
 /// Returns the table's current storage capacity: how many slots are
@@ -62,9 +43,8 @@ typedef struct RHTable_struct*    RHTable;
 /// @param table  The table to query.
 /// @return       The table's current capacity, in slots.
 ///
-extern
-size_t
-rh_capacity (RHTable table);
+extern size_t
+rh_capacity(RHTable table);
 
 ///
 /// Removes a single key, if present, via backward-shift deletion (no
@@ -75,10 +55,8 @@ rh_capacity (RHTable table);
 /// @param table  The table to remove the key from.
 /// @param key    The key to remove.
 ///
-extern
-void
-rh_clear (RHTable     table,
-          const char* key);
+extern void
+rh_clear(RHTable table, const char* key);
 
 ///
 /// Returns the number of keys currently stored in the table.
@@ -86,9 +64,8 @@ rh_clear (RHTable     table,
 /// @param table  The table to query.
 /// @return       The number of keys currently stored.
 ///
-extern
-size_t
-rh_count (RHTable table);
+extern size_t
+rh_count(RHTable table);
 
 ///
 /// Creates a new, empty hash table.
@@ -103,9 +80,8 @@ rh_count (RHTable table);
 ///                          is too large to round up without
 ///                          overflow).
 ///
-extern
-RHTable
-rh_create (size_t initial_capacity);
+extern RHTable
+rh_create(size_t initial_capacity);
 
 ///
 /// Frees a table and all of its internal key copies, then sets
@@ -115,9 +91,8 @@ rh_create (size_t initial_capacity);
 ///
 /// @param table  Address of the table handle to destroy.
 ///
-extern
-void
-rh_destroy (RHTable* table);
+extern void
+rh_destroy(RHTable* table);
 
 ///
 /// Removes every key from the table, freeing each internal key copy.
@@ -126,9 +101,8 @@ rh_destroy (RHTable* table);
 ///
 /// @param table  The table to empty.
 ///
-extern
-void
-rh_empty (RHTable table);
+extern void
+rh_empty(RHTable table);
 
 ///
 /// Looks up `key` in the table.
@@ -141,11 +115,8 @@ rh_empty (RHTable table);
 ///                           `not_found_result` if `key` is not in
 ///                           the table.
 ///
-extern
-void*
-rh_get (RHTable     table,
-        const char* key,
-        void*       not_found_result);
+extern void*
+rh_get(RHTable table, const char* key, void* not_found_result);
 
 ///
 /// Checks whether `key` is present in the table.
@@ -154,10 +125,8 @@ rh_get (RHTable     table,
 /// @param key    The key to look for.
 /// @return       true if `key` is present, false otherwise.
 ///
-extern
-bool
-rh_has (RHTable     table,
-        const char* key);
+extern bool
+rh_has(RHTable table, const char* key);
 
 /// Number of buckets in `RHProbeStats.histogram` -- bucket `i` counts
 /// entries at exactly probe distance `i`, for `i` less than this minus
@@ -192,10 +161,8 @@ struct RHProbeStats
 /// @param table      The table to inspect.
 /// @param out_stats  Filled in with the computed statistics.
 ///
-extern
-void
-rh_probe_stats (RHTable              table,
-                struct RHProbeStats* out_stats);
+extern void
+rh_probe_stats(RHTable table, struct RHProbeStats* out_stats);
 
 ///
 /// Returns the table's current resize threshold, as a percentage
@@ -206,9 +173,8 @@ rh_probe_stats (RHTable              table,
 /// @param table  The table to query.
 /// @return       The table's current resize threshold, 1-100.
 ///
-extern
-unsigned int
-rh_resize_threshold (RHTable table);
+extern unsigned int
+rh_resize_threshold(RHTable table);
 
 ///
 /// Inserts `key` with `value`, or updates the value if `key` is
@@ -221,11 +187,8 @@ rh_resize_threshold (RHTable table);
 /// @param key    The key to insert or update.
 /// @param value  The value to associate with `key`.
 ///
-extern
-void
-rh_set (RHTable     table,
-        const char* key,
-        void*       value);
+extern void
+rh_set(RHTable table, const char* key, void* value);
 
 ///
 /// Changes the table's resize threshold -- see rh_resize_threshold().
@@ -242,14 +205,12 @@ rh_set (RHTable     table,
 /// @return         true if `percent` was valid and applied, false
 ///                 (leaving the threshold unchanged) otherwise.
 ///
-extern
-bool
-rh_set_resize_threshold (RHTable      table,
-                         unsigned int percent);
-
-//
+extern bool
+rh_set_resize_threshold(RHTable table, unsigned int percent);
+
+// ===========================================================================
 // Iterator operations
-//
+// ===========================================================================
 
 ///
 /// Opaque handle to an in-progress iteration over an RHTable's
@@ -265,9 +226,8 @@ typedef struct RHIterator_struct* RHIterator;
 ///
 /// @param iterator  The iterator to advance.
 ///
-extern
-void
-rhi_advance (RHIterator iterator);
+extern void
+rhi_advance(RHIterator iterator);
 
 ///
 /// Creates a new iterator over `table`, positioned at the first key
@@ -278,18 +238,16 @@ rhi_advance (RHIterator iterator);
 ///               iterator is in use.
 /// @return       A new iterator, or NULL on allocation failure.
 ///
-extern
-RHIterator
-rhi_create (RHTable table);
+extern RHIterator
+rhi_create(RHTable table);
 
 ///
 /// Frees an iterator. Does not affect the underlying table.
 ///
 /// @param iterator  The iterator to destroy.
 ///
-extern
-void
-rhi_destroy (RHIterator iterator);
+extern void
+rhi_destroy(RHIterator iterator);
 
 ///
 /// Checks whether an iterator has passed the last key.
@@ -298,9 +256,8 @@ rhi_destroy (RHIterator iterator);
 /// @return          true if there are no more keys to visit, false
 ///                  otherwise.
 ///
-extern
-bool
-rhi_is_finished (RHIterator iterator);
+extern bool
+rhi_is_finished(RHIterator iterator);
 
 ///
 /// Returns the key at the iterator's current position.
@@ -309,9 +266,8 @@ rhi_is_finished (RHIterator iterator);
 /// @return          The current key, or NULL if the iterator is
 ///                  finished -- see rhi_is_finished().
 ///
-extern
-const char*
-rhi_key (RHIterator iterator);
+extern const char*
+rhi_key(RHIterator iterator);
 
 ///
 /// Rewinds an iterator back to the first key (if any), as if freshly
@@ -319,13 +275,12 @@ rhi_key (RHIterator iterator);
 ///
 /// @param iterator  The iterator to rewind.
 ///
-extern
-void
-rhi_reset (RHIterator iterator);
-
-//
+extern void
+rhi_reset(RHIterator iterator);
+
+// ===========================================================================
 // Global configuration
-//
+// ===========================================================================
 
 ///
 /// Signature for a custom warning handler -- see
@@ -334,7 +289,7 @@ rhi_reset (RHIterator iterator);
 /// happened. It's only valid for the duration of the call; copy it if
 /// you need to keep it.
 ///
-typedef void (*RHWarningHandler) (const char* message);
+typedef void (*RHWarningHandler)(const char* message);
 
 ///
 /// The library's own default warning handler: prints `message` to
@@ -346,9 +301,8 @@ typedef void (*RHWarningHandler) (const char* message);
 /// @param message  The message to print, as described in
 ///                 RHWarningHandler's own documentation.
 ///
-extern
-void
-rh_default_warning_handler (const char* message);
+extern void
+rh_default_warning_handler(const char* message);
 
 ///
 /// Installs a handler for the library's internal warnings (currently:
@@ -371,8 +325,7 @@ rh_default_warning_handler (const char* message);
 ///                 warn(3)) -- programs that never call this see no
 ///                 change in behavior.
 ///
-extern
-void
-rh_set_warning_handler (RHWarningHandler handler);
+extern void
+rh_set_warning_handler(RHWarningHandler handler);
 
 #endif // ROBIN_HOOD_HEADER_INCLUDED

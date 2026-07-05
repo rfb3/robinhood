@@ -3,29 +3,6 @@
 //
 // SPDX-License-Identifier: Unlicense
 //
-
-//
-// Table of Contents
-//
-// This file uses the ASCII "form feed" character (Control-L) to delineate
-// logical pages. This table of contents is collected from the first non-blank
-// lines on each logical page.
-//
-
-// netifs.c - part of robinhood, a hash table with Robin Hood insertion
-// Table of Contents
-// Headers, etc.
-// Type definitions
-// File-local prototypes
-// build_key(char*,size_t,RHTable,const char*,const char*)
-// compare_keys(const void*,const void*)
-// format_flags(char*,size_t,unsigned int)
-// main(int,char**)
-// print_usage(const char*)
-
-//
-// Headers, etc.
-//
 
 #include "robinhood.h"
 
@@ -41,10 +18,6 @@
 #include <string.h>
 
 #include <sys/socket.h>
-
-//
-// Type definitions
-//
 
 // `address` is already rendered to text (inet_ntop()) at insertion
 // time, since the `struct ifaddrs` list it came from is freed before
@@ -54,107 +27,79 @@ struct interface_info
     unsigned int flags;
     char         address [INET6_ADDRSTRLEN];
 };
-
-//
+
+// ===========================================================================
 // File-local prototypes
-//
+// ===========================================================================
 
-static
-void
-build_key (char*       key_buffer,
-           size_t      key_buffer_size,
-           RHTable     table,
-           const char* name,
-           const char* family);
+static void
+build_key(char*       key_buffer,
+          size_t      key_buffer_size,
+          RHTable     table,
+          const char* name,
+          const char* family);
 
-static
-int
-compare_keys (const void* left,
-              const void* right);
+static int
+compare_keys(const void* left, const void* right);
 
-static
-void
-format_flags (char*        buffer,
-              size_t       buffer_size,
-              unsigned int flags);
+static void
+format_flags(char* buffer, size_t buffer_size, unsigned int flags);
 
 int
-main (int    argc,
-      char** argv);
+main(int argc, char** argv);
 
-static
-void
-print_usage (const char* program_name);
-
-//
-// build_key(char*,size_t,RHTable,const char*,const char*)
-//
+static void
+print_usage(const char* program_name);
 
 // Real interfaces often carry more than one address of the same
 // family (e.g. an IPv6 link-local address alongside a global one),
 // so name+family alone isn't always unique.
-static
-void
-build_key (char*       key_buffer,
-           size_t      key_buffer_size,
-           RHTable     table,
-           const char* name,
-           const char* family)
+static void
+build_key(char*       key_buffer,
+          size_t      key_buffer_size,
+          RHTable     table,
+          const char* name,
+          const char* family)
 {
-    snprintf (key_buffer, key_buffer_size, "%s/%s", name, family);
+    snprintf(key_buffer, key_buffer_size, "%s/%s", name, family);
 
-    for (int suffix = 1; rh_has (table, key_buffer); ++suffix)
+    for (int suffix = 1; rh_has(table, key_buffer); ++suffix)
     {
-        snprintf (key_buffer, key_buffer_size, "%s/%s#%d",
-                  name, family, suffix);
+        snprintf(key_buffer, key_buffer_size, "%s/%s#%d", name, family,
+                 suffix);
     }
 }
-
-//
-// compare_keys(const void*,const void*)
-//
 
 // `left`/`right` each point at one array element (i.e. a `const
 // char*`), not at the string itself -- hence the double indirection.
-static
-int
-compare_keys (const void* left,
-              const void* right)
+static int
+compare_keys(const void* left, const void* right)
 {
     const char* const* left_key  = (const char* const*)left;
     const char* const* right_key = (const char* const*)right;
 
-    return strcmp (*left_key, *right_key);
+    return strcmp(*left_key, *right_key);
 }
-
-//
-// format_flags(char*,size_t,unsigned int)
-//
 
 // Real interfaces carry many more IFF_* bits than this, but these
 // three are the ones most useful for "is this connection actually
 // usable" at a glance.
-static
-void
-format_flags (char*        buffer,
-              size_t       buffer_size,
-              unsigned int flags)
+static void
+format_flags(char* buffer, size_t buffer_size, unsigned int flags)
 {
     static const struct
     {
         unsigned int bit;
         const char*  name;
-    }
-    known_flags [] =
-    {
-        { IFF_UP,       "UP" },
-        { IFF_LOOPBACK, "LOOPBACK" },
-        { IFF_RUNNING,  "RUNNING" },
+    } known_flags [] = {
+        {IFF_UP, "UP"},
+        {IFF_LOOPBACK, "LOOPBACK"},
+        {IFF_RUNNING, "RUNNING"},
     };
 
     size_t position   = 0;
-    size_t flag_count = sizeof (known_flags) / sizeof (known_flags [0]);
-    buffer [0] = '\0';
+    size_t flag_count = sizeof(known_flags) / sizeof(known_flags [0]);
+    buffer [0]        = '\0';
 
     for (size_t index = 0; index < flag_count; ++index)
     {
@@ -163,9 +108,9 @@ format_flags (char*        buffer,
             continue;
         }
 
-        int written = snprintf (buffer + position, buffer_size - position,
-                                 "%s%s", (position == 0) ? "" : ",",
-                                 known_flags [index].name);
+        int written =
+            snprintf(buffer + position, buffer_size - position, "%s%s",
+                     (position == 0) ? "" : ",", known_flags [index].name);
 
         if ((written < 0) || (((size_t)written) >= (buffer_size - position)))
         {
@@ -175,14 +120,9 @@ format_flags (char*        buffer,
         position += (size_t)written;
     }
 }
-
-//
-// main(int,char**)
-//
 
 int
-main (int    argc,
-      char** argv)
+main(int argc, char** argv)
 {
     bool         have_resize_threshold = false;
     unsigned int resize_threshold      = 0;
@@ -192,60 +132,57 @@ main (int    argc,
         OPT_RESIZE_THRESHOLD = 256
     };
 
-    static const struct option long_options [] =
-    {
-        { "resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD },
-        { NULL,               0,                 NULL, 0 }
-    };
+    static const struct option long_options [] = {
+        {"resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD},
+        {NULL, 0, NULL, 0}};
 
     opterr = 0;
 
     int opt;
-    while ((opt = getopt_long (argc, argv, "", long_options, NULL)) != -1)
+    while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1)
     {
         switch (opt)
         {
-            case OPT_RESIZE_THRESHOLD:
-                resize_threshold = (unsigned int)(strtoul (optarg, NULL, 10));
-                have_resize_threshold = true;
-                break;
-            default:
-                print_usage (argv [0]);
-                return 2;
+        case OPT_RESIZE_THRESHOLD:
+            resize_threshold      = (unsigned int)(strtoul(optarg, NULL, 10));
+            have_resize_threshold = true;
+            break;
+        default:
+            print_usage(argv [0]);
+            return 2;
         }
     }
 
     if (optind != argc)
     {
-        print_usage (argv [0]);
+        print_usage(argv [0]);
         return 2;
     }
 
     struct ifaddrs* addresses;
 
-    if (getifaddrs (&addresses) != 0)
+    if (getifaddrs(&addresses) != 0)
     {
-        fprintf (stderr, "%s: getifaddrs: %s\n", argv [0], strerror (errno));
+        fprintf(stderr, "%s: getifaddrs: %s\n", argv [0], strerror(errno));
         return 1;
     }
 
-    RHTable table = rh_create (32);
+    RHTable table = rh_create(32);
 
-    if (have_resize_threshold
-        && !rh_set_resize_threshold (table, resize_threshold))
+    if (have_resize_threshold &&
+        !rh_set_resize_threshold(table, resize_threshold))
     {
-        fprintf (stderr,
-                 "%s: invalid --resize-threshold value '%u'"
-                 " (must be 1-100)\n",
-                 argv [0], resize_threshold);
-        freeifaddrs (addresses);
-        rh_destroy (&table);
+        fprintf(stderr,
+                "%s: invalid --resize-threshold value '%u'"
+                " (must be 1-100)\n",
+                argv [0], resize_threshold);
+        freeifaddrs(addresses);
+        rh_destroy(&table);
         return 2;
     }
 
-    for (struct ifaddrs* entry = addresses;
-         entry != NULL;
-         entry = entry->ifa_next)
+    for (struct ifaddrs* entry = addresses; entry != NULL;
+         entry                 = entry->ifa_next)
     {
         if (entry->ifa_addr == NULL)
         {
@@ -257,21 +194,21 @@ main (int    argc,
 
         if (entry->ifa_addr->sa_family == AF_INET)
         {
-            struct sockaddr_in* in_address
-                = (struct sockaddr_in*)(entry->ifa_addr);
+            struct sockaddr_in* in_address =
+                (struct sockaddr_in*)(entry->ifa_addr);
 
             family_name = "inet";
-            inet_ntop (AF_INET, &(in_address->sin_addr),
-                       address, sizeof (address));
+            inet_ntop(AF_INET, &(in_address->sin_addr), address,
+                      sizeof(address));
         }
         else if (entry->ifa_addr->sa_family == AF_INET6)
         {
-            struct sockaddr_in6* in6_address
-                = (struct sockaddr_in6*)(entry->ifa_addr);
+            struct sockaddr_in6* in6_address =
+                (struct sockaddr_in6*)(entry->ifa_addr);
 
             family_name = "inet6";
-            inet_ntop (AF_INET6, &(in6_address->sin6_addr),
-                       address, sizeof (address));
+            inet_ntop(AF_INET6, &(in6_address->sin6_addr), address,
+                      sizeof(address));
         }
         else
         {
@@ -281,10 +218,10 @@ main (int    argc,
         }
 
         char key [128];
-        build_key (key, sizeof (key), table, entry->ifa_name, family_name);
+        build_key(key, sizeof(key), table, entry->ifa_name, family_name);
 
-        struct interface_info* info = (struct interface_info*)(
-            malloc (sizeof (struct interface_info)));
+        struct interface_info* info =
+            (struct interface_info*)(malloc(sizeof(struct interface_info)));
 
         if (info == NULL)
         {
@@ -292,82 +229,77 @@ main (int    argc,
         }
 
         info->flags = entry->ifa_flags;
-        memcpy (info->address, address, sizeof (address));
+        memcpy(info->address, address, sizeof(address));
 
-        rh_set (table, key, info);
+        rh_set(table, key, info);
     }
 
-    freeifaddrs (addresses);
+    freeifaddrs(addresses);
 
-    size_t entry_count = rh_count (table);
+    size_t entry_count = rh_count(table);
 
-    printf ("%zu address%s across this machine's interfaces:\n\n",
-            entry_count, (entry_count == 1) ? "" : "es");
+    printf("%zu address%s across this machine's interfaces:\n\n", entry_count,
+           (entry_count == 1) ? "" : "es");
 
-    const char** keys = (const char**)(
-        malloc (entry_count * sizeof (const char*)));
+    const char** keys =
+        (const char**)(malloc(entry_count * sizeof(const char*)));
 
     if ((keys == NULL) && (entry_count > 0))
     {
-        rh_destroy (&table);
+        rh_destroy(&table);
         return 1;
     }
 
     size_t     index = 0;
     RHIterator it;
 
-    for (it = rhi_create (table); !rhi_is_finished (it); rhi_advance (it))
+    for (it = rhi_create(table); !rhi_is_finished(it); rhi_advance(it))
     {
-        keys [index] = rhi_key (it);
+        keys [index] = rhi_key(it);
         ++index;
     }
 
-    rhi_destroy (it);
+    rhi_destroy(it);
 
-    qsort (keys, entry_count, sizeof (const char*), compare_keys);
+    qsort(keys, entry_count, sizeof(const char*), compare_keys);
 
     for (size_t rank = 0; rank < entry_count; ++rank)
     {
-        struct interface_info* info
-            = (struct interface_info*)(rh_get (table, keys [rank], NULL));
+        struct interface_info* info =
+            (struct interface_info*)(rh_get(table, keys [rank], NULL));
         char flags_text [64];
 
-        format_flags (flags_text, sizeof (flags_text), info->flags);
-        printf ("%-20s %-40s %s\n", keys [rank], info->address, flags_text);
+        format_flags(flags_text, sizeof(flags_text), info->flags);
+        printf("%-20s %-40s %s\n", keys [rank], info->address, flags_text);
 
-        free (info);
+        free(info);
     }
 
-    free (keys);
-    rh_destroy (&table);
+    free(keys);
+    rh_destroy(&table);
 
     return 0;
 }
-
-//
-// print_usage(const char*)
-//
 
-static
-void
-print_usage (const char* program_name)
+static void
+print_usage(const char* program_name)
 {
-    fprintf (stderr,
-             "usage: %s [--resize-threshold PERCENT]\n"
-             "\n"
-             "Enumerates this machine's network interfaces via"
-             " getifaddrs(3),\n"
-             "mapping each (interface, address family) pair to its"
-             " address and\n"
-             "flags in an RHTable, then prints them sorted by key."
-             " IPv4/IPv6\n"
-             "addresses only -- link-layer entries (MAC addresses)"
-             " are skipped,\n"
-             "since their sockaddr representation isn't portable"
-             " (sockaddr_dl\n"
-             "on BSD/macOS vs. sockaddr_ll on Linux).\n"
-             "--resize-threshold PERCENT sets the table's resize"
-             " threshold (1-100,\n"
-             "default 80) -- see rh_set_resize_threshold().\n",
-             program_name);
+    fprintf(stderr,
+            "usage: %s [--resize-threshold PERCENT]\n"
+            "\n"
+            "Enumerates this machine's network interfaces via"
+            " getifaddrs(3),\n"
+            "mapping each (interface, address family) pair to its"
+            " address and\n"
+            "flags in an RHTable, then prints them sorted by key."
+            " IPv4/IPv6\n"
+            "addresses only -- link-layer entries (MAC addresses)"
+            " are skipped,\n"
+            "since their sockaddr representation isn't portable"
+            " (sockaddr_dl\n"
+            "on BSD/macOS vs. sockaddr_ll on Linux).\n"
+            "--resize-threshold PERCENT sets the table's resize"
+            " threshold (1-100,\n"
+            "default 80) -- see rh_set_resize_threshold().\n",
+            program_name);
 }
