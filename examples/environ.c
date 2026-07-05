@@ -17,8 +17,8 @@
 // Headers, etc.
 // File-local prototypes
 // compare_keys(const void*,const void*)
-// print_usage(const char*)
 // main(int,char**)
+// print_usage(const char*)
 
 //
 // Headers, etc.
@@ -69,32 +69,6 @@ compare_keys (const void* left,
     const char* const* right_key = (const char* const*)right;
 
     return strcmp (*left_key, *right_key);
-}
-
-//
-// print_usage(const char*)
-//
-
-static
-void
-print_usage (const char* program_name)
-{
-    fprintf (stderr,
-             "usage: %s [--resize-threshold PERCENT]\n"
-             "\n"
-             "Walks this process's environment into an RHTable"
-             " (name -> value)\n"
-             "and prints it sorted by name. Values are borrowed"
-             " pointers into\n"
-             "the existing environment strings, not copies -- the"
-             " only example\n"
-             "that needs no heap allocation at all beyond what"
-             " rh_set() itself\n"
-             "does for its key copies.\n"
-             "--resize-threshold PERCENT sets the table's resize"
-             " threshold (1-100,\n"
-             "default 80) -- see rh_set_resize_threshold().\n",
-             program_name);
 }
 
 //
@@ -221,4 +195,30 @@ main (int    argc,
     rh_destroy (&table);
 
     return 0;
+}
+
+//
+// print_usage(const char*)
+//
+
+static
+void
+print_usage (const char* program_name)
+{
+    fprintf (stderr,
+             "usage: %s [--resize-threshold PERCENT]\n"
+             "\n"
+             "Walks this process's environment into an RHTable"
+             " (name -> value)\n"
+             "and prints it sorted by name. Values are borrowed"
+             " pointers into\n"
+             "the existing environment strings, not copies -- the"
+             " only example\n"
+             "that needs no heap allocation at all beyond what"
+             " rh_set() itself\n"
+             "does for its key copies.\n"
+             "--resize-threshold PERCENT sets the table's resize"
+             " threshold (1-100,\n"
+             "default 80) -- see rh_set_resize_threshold().\n",
+             program_name);
 }
