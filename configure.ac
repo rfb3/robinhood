@@ -26,6 +26,21 @@ AC_PROG_CC
 AM_PROG_AR
 LT_INIT
 
+dnl strdup (POSIX.1-2001, used by src/robinhood.c)
+AC_MSG_CHECKING([for strdup])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+#include <string.h>
+int main (void)
+{
+    char* s = strdup ("x");
+    return s == 0;
+}
+]])], [AC_MSG_RESULT([yes])], [
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([[could not compile a program using strdup() -- this
+POSIX.1-2001 call is required by src/robinhood.c]])
+])
+
 dnl openat/fstatat/fdopendir (POSIX.1-2008, used by examples/scan.c)
 AC_MSG_CHECKING([for openat/fstatat/fdopendir])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
