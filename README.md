@@ -9,8 +9,9 @@ open-addressing insertion and backward-shift deletion.
 - Grows (doubling) automatically once load factor would exceed 80%.
 - Written to POSIX.1-2001 base where possible; the example tools use
   newer POSIX.1-2008 calls (`fstatat`/`openat`) where that materially
-  helps, documented in `PERFORMANCE.md`. One example (`netifs`) also
-  relies on a BSD extension (`getifaddrs`) -- checked by `./configure`.
+  helps, documented in <a href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a>.
+  One example (`netifs`) also relies on a BSD extension (`getifaddrs`)
+  -- checked by `./configure`.
 
 See also: [Full API documentation][gh-pages]
 
@@ -60,9 +61,11 @@ patterns instead of one superseding the others:
   `--follow-symlinks`, `--exclude PATH` (repeatable), `--probe-stats`
   (prints Robin Hood probe-depth statistics -- mean/max/stddev and a
   histogram -- after the walk; off by default, though measured
-  overhead is negligible, see `PERFORMANCE.md`). See `PERFORMANCE.md`
-  for real-world timings, including scans of an entire home directory
-  and root filesystem.
+  overhead is negligible, see
+  <a href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a>). See
+  <a href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a> for
+  real-world timings, including scans of an entire home directory and
+  root filesystem.
 - `memo <n>` (`./memo`) -- computes `fib(n)` via recursion memoized in the
   table, demonstrating it as a cache: `rh_has`/`rh_get` for lookups,
   `rh_set` to populate a miss, and `rh_clear` to invalidate one entry
@@ -217,10 +220,11 @@ Check these return values wherever allocation failure is a real
 possibility you need to handle.
 
 The table doubles capacity whenever the next insertion would push its
-load factor past 80%, a fixed threshold -- not configurable, since
-`PERFORMANCE.md`'s "Configurable resize threshold" section found no
-value in the 70-90% range that beats 80% on both speed and density at
-once, so the added API surface wasn't worth it.
+load factor past 80%, a fixed threshold -- not configurable, since the
+<a href="PERFORMANCE.md#configurable-resize-threshold-does-anything-beat-the-80-default">"Configurable resize threshold" section</a>
+of `PERFORMANCE.md` found no value in the 70-90% range that beats 80%
+on both speed and density at once, so the added API surface wasn't
+worth it.
 
 ## Thread safety
 
@@ -287,8 +291,10 @@ them.
 
 ## Further reading
 
-- `STYLE.md` -- code style conventions for contributors.
-- `PERFORMANCE.md` -- empirical growth/timing findings from the `scan` tool.
+- <a href="STYLE.md"><code>STYLE.md</code></a> -- code style
+  conventions for contributors.
+- <a href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a> -- empirical
+  growth/timing findings from the `scan` tool.
 
 ## License
 
