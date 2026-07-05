@@ -1495,6 +1495,26 @@ autogen:
 	@echo "Regenerated configure/Makefile.in/aclocal.m4/build-aux --" \
 	      "review the diff before committing."
 
+# Optional -- not part of `all`/`check`. Bumps configure.ac's AC_INIT
+# version (the single source of truth every other version string --
+# PACKAGE_VERSION, robinhood.pc, the dist tarball name -- derives
+# from) and regenerates the build system to match. Pass the new
+# version explicitly, e.g.:
+#   make version-bump VERSION=1.0.1
+version-bump:
+	@test -n "$(VERSION)" || { \
+	    echo "version-bump: pass the new version, e.g." \
+	         "'make version-bump VERSION=1.0.1'" >&2; \
+	    exit 1; \
+	}
+	sed -i.bak -E \
+	    's/^AC_INIT\(\[robinhood\], \[[^]]*\]\)/AC_INIT([robinhood], [$(VERSION)])/' \
+	    $(srcdir)/configure.ac
+	$(RM) $(srcdir)/configure.ac.bak
+	$(MAKE) autogen
+	@echo "Bumped to $(VERSION) -- review the diff, rebuild to confirm," \
+	      "then tag."
+
 clean-local:
 	$(RM) -r docs
 	$(RM) *.gcda *.gcno *.gcov coverage.info
@@ -1530,7 +1550,7 @@ coverage-html: coverage
 	genhtml coverage.info --output-directory coverage-html
 	@echo "Generated coverage-html/index.html"
 
-.PHONY: test sanitize docs format autogen coverage coverage-html
+.PHONY: test sanitize docs format autogen version-bump coverage coverage-html
 
 tarball:
 	( cd .. ; tar cf - robinhood | gzip > robinhood-`date +'%Y%m%d-%H%M-%Z'`.tar.gz )
