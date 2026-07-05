@@ -20,6 +20,20 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#ifdef RH_COVERAGE_BUILD
+// Only declared/called under `make coverage` (see Makefile.am's
+// COVERAGE_FLAGS) -- gcov's own instrumentation registers its dump via
+// atexit(), which run_test_isolated()'s forked children deliberately
+// bypass by calling _exit() rather than exit(). Without an explicit
+// dump, a child's coverage counters are simply never written to disk,
+// which is indistinguishable from that code never having run at all --
+// confirmed empirically, not just suspected. __gcov_dump() is libgcov's
+// (and Apple clang's compatible compiler-rt's) own explicit "write
+// counters now" entry point; not declared in any public header.
+extern void
+__gcov_dump(void);
+#endif
+
 struct test
 {
     const char* name;
@@ -259,6 +273,9 @@ run_test_isolated(int (*function)(void))
         (void)written;
 
         close(pipe_fds [1]);
+#ifdef RH_COVERAGE_BUILD
+        __gcov_dump();
+#endif
         _exit(0);
     }
 
