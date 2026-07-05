@@ -64,18 +64,18 @@ main(int argc, char** argv)
 
     if (argc > 2)
     {
-        print_usage(argv [0]);
+        print_usage(argv[0]);
         return 2;
     }
 
     if (argc == 2)
     {
         char* end = NULL;
-        top_n     = strtol(argv [1], &end, 10);
+        top_n     = strtol(argv[1], &end, 10);
 
-        if ((end == argv [1]) || (*end != '\0') || (top_n < 1))
+        if ((end == argv[1]) || (*end != '\0') || (top_n < 1))
         {
-            print_usage(argv [0]);
+            print_usage(argv[0]);
             return 2;
         }
     }
@@ -84,7 +84,7 @@ main(int argc, char** argv)
 
     size_t total_words  = 0;
     size_t store_failed = 0;
-    char   word [256];
+    char   word[256];
 
     while (scanf("%255s", word) == 1)
     {
@@ -136,8 +136,8 @@ main(int argc, char** argv)
     {
         const char* key = rhi_key(it);
 
-        counts [index].word  = key;
-        counts [index].count = (long int)(rh_get(table, key, NULL));
+        counts[index].word  = key;
+        counts[index].count = (long int)(rh_get(table, key, NULL));
         ++index;
     }
 
@@ -156,7 +156,7 @@ main(int argc, char** argv)
 
     for (size_t rank = 0; rank < shown; ++rank)
     {
-        printf("%6ld  %s\n", counts [rank].count, counts [rank].word);
+        printf("%6ld  %s\n", counts[rank].count, counts[rank].word);
     }
 
     free(counts);
@@ -173,14 +173,14 @@ normalize_word(char* word)
     size_t length = strlen(word);
     size_t start  = 0;
 
-    while ((start < length) && !isalnum((unsigned char)(word [start])))
+    while ((start < length) && !isalnum((unsigned char)(word[start])))
     {
         ++start;
     }
 
     size_t end = length;
 
-    while ((end > start) && !isalnum((unsigned char)(word [end - 1])))
+    while ((end > start) && !isalnum((unsigned char)(word[end - 1])))
     {
         --end;
     }
@@ -189,9 +189,9 @@ normalize_word(char* word)
 
     for (size_t index = 0; index < trimmed_length; ++index)
     {
-        word [index] = (char)(tolower((unsigned char)(word [start + index])));
+        word[index] = (char)(tolower((unsigned char)(word[start + index])));
     }
-    word [trimmed_length] = '\0';
+    word[trimmed_length] = '\0';
 
     return trimmed_length;
 }

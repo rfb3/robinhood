@@ -152,7 +152,7 @@ struct RHProbeStats
 
     /// Entry count per bucket -- see RH_PROBE_HISTOGRAM_BUCKETS for how
     /// a distance maps to a bucket index.
-    size_t histogram [RH_PROBE_HISTOGRAM_BUCKETS];
+    size_t histogram[RH_PROBE_HISTOGRAM_BUCKETS];
 };
 
 ///

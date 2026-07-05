@@ -1,16 +1,11 @@
-# Draft clang-format config for robinhood, tuned against STYLE.md.
-# Experimental -- not yet wired into `make format`. See STYLE.md for the
-# authoritative, human-readable convention; this is a best-effort subset
-# of it that clang-format can actually enforce mechanically.
+# clang-format config for robinhood, tuned against STYLE.md and wired
+# into `make format`. See STYLE.md for the authoritative, human-readable
+# convention; this is the mechanical subset of it clang-format enforces.
 #
-# Still-known gaps if this were ever run wholesale (accepted, not
-# fixed, since the point is to keep the hand-tuned multi-line
-# parameter alignment as much as possible): clang-format collapses a
-# wrapped multi-parameter signature back onto one line whenever it
-# already fits under ColumnLimit, and merges the `static`/return-type
-# split onto one line rather than the two separate lines this project
-# uses. Fine for a diff-scoped tool (`git-clang-format`) on new code;
-# not safe to run whole-file over the existing, hand-aligned source.
+# One accepted characteristic, not a gap: a wrapped multi-parameter
+# signature collapses back onto one line whenever it fits under
+# ColumnLimit (see STYLE.md's "Function declarations and definitions"
+# -- this is the actual convention now, not something being avoided).
 
 Language: Cpp
 BasedOnStyle: LLVM
@@ -44,14 +39,14 @@ AlignAfterOpenBracket: Align
 
 SpaceBeforeParens: ControlStatements
 
-SpaceBeforeSquareBrackets: true
+SpaceBeforeSquareBrackets: false
 
 SortIncludes: CaseSensitive
 IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^".*"'
     Priority: 1
-  - Regex: '^<sys/.*>'
+  - Regex: '^<.*/.*>'
     Priority: 3
   - Regex: '^<.*>'
     Priority: 2

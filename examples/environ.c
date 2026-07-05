@@ -44,7 +44,7 @@ main(int argc, char** argv)
 {
     if (argc != 1)
     {
-        print_usage(argv [0]);
+        print_usage(argv[0]);
         return 2;
     }
 
@@ -64,7 +64,7 @@ main(int argc, char** argv)
         }
 
         size_t name_length = (size_t)(equals - *entry);
-        char   name [256];
+        char   name[256];
 
         if (name_length >= sizeof(name))
         {
@@ -72,7 +72,7 @@ main(int argc, char** argv)
         }
 
         memcpy(name, *entry, name_length);
-        name [name_length] = '\0';
+        name[name_length] = '\0';
 
         // Last occurrence of a duplicate name wins, since that falls
         // out naturally from rh_set() semantics -- contrast getenv(3),
@@ -107,7 +107,7 @@ main(int argc, char** argv)
 
     for (it = rhi_create(table); !rhi_is_finished(it); rhi_advance(it))
     {
-        keys [index] = rhi_key(it);
+        keys[index] = rhi_key(it);
         ++index;
     }
 
@@ -117,9 +117,9 @@ main(int argc, char** argv)
 
     for (size_t rank = 0; rank < entry_count; ++rank)
     {
-        const char* value = (const char*)(rh_get(table, keys [rank], NULL));
+        const char* value = (const char*)(rh_get(table, keys[rank], NULL));
 
-        printf("%-32s %s\n", keys [rank], value);
+        printf("%-32s %s\n", keys[rank], value);
     }
 
     free(keys);

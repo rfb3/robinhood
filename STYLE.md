@@ -34,19 +34,18 @@ fight standard tooling.
 - Prefer `while (true)` over `for (;;)` for an intentionally infinite
   loop — `true` says what's happening, where `for (;;)`'s three empty
   clauses only say what *isn't*.
-- No space before `(` for function/macro calls, declarations, or
-  definitions — `rh_get(table, key, NULL)`, `bar()`, `RHE_KEY(entry)`,
-  `#define RHE_KEY(ENTRY) ...`. This is the one place the standard
-  Allman convention and the mandatory C-preprocessor rule for
-  function-like macros (`#define NAME(args)` can never have a space,
-  or it becomes an object-like macro) already agree, so there's no
-  exception to carve out here anymore.
-- Space before `(` for the control-flow keywords `if`, `for`, `while`,
-  `switch`, and `return` (when followed by a parenthesized
-  expression) — `if (x)`, `while (true)`, `return (a) ? b : c;`.
-- Space before `[` for array indexing — `entries [pos]`, not
-  `entries[pos]` — this is `clang-format`'s `SpaceBeforeSquareBrackets`
-  option, kept because it reads well and doesn't fight the tool.
+- Space before `(` only for the control-flow keywords `if`/`for`/
+  `while`/`switch`/`return` — `if (x)`, `while (true)`, `return (a) ?
+  b : c;`. Never before `(` anywhere else — calls, declarations, and
+  definitions all stay tight against the paren: `rh_get(table, key,
+  NULL)`, `bar()`, `RHE_KEY(entry)`. (For a function-like macro's own
+  `#define`, this isn't just style — a space there makes it an
+  object-like macro instead, per the C preprocessor itself.) This is
+  standard C spacing, matching every major `clang-format` built-in
+  style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft); GNU
+  style is the one common exception, adding the space to calls too.
+- No space before `[` for array indexing either — `entries[pos]`, not
+  `entries [pos]` — matching `clang-format`'s own default.
 - When ordering lists of things, if there is no need for any particular
   ordering, put things in alphabetical/lexicographic order. Everything from
   dependencies in a makefile to ordering of function definitions in source
@@ -172,17 +171,12 @@ order, each sorted alphabetically within itself:
    separate and first so a missing or wrong local include shows up
    immediately, rather than being hidden behind whatever transitively
    pulls it in from a system header.
-2. "Regular" system/library headers with no directory prefix, in angle
-   brackets (`<stdio.h>`, `<stdlib.h>`, etc.).
-3. Everything else in angle brackets — headers with a directory prefix
-   like `<sys/...>` or `<netinet/...>` — grouped one prefix per block,
-   not lumped into a single trailing block together: each distinct
-   prefix gets its own block, separated from the others (and from the
-   plain block above) by a blank line. The blocks themselves are
-   sorted too, not just the headers within each one — alphabetically
-   by prefix, `<net/...>` before `<sys/...>` — the same
-   alphabetical-ordering default this guide applies to everything else
-   (see "Formatting" above).
+2. "Regular" system/library headers with no directory component, in
+   angle brackets (`<stdio.h>`, `<stdlib.h>`, etc.).
+3. Everything else in angle brackets — any header with a `/` in its
+   name, naming some subdirectory (`<sys/stat.h>`, `<arpa/inet.h>`,
+   `<netinet/in.h>`, ...) — together in one further block, sorted
+   alphabetically same as the other two.
 
 ```c
 #include "robinhood.h"
@@ -202,21 +196,16 @@ order, each sorted alphabetically within itself:
 #include <sys/stat.h>
 ```
 
-(`examples/scan.c`, which only ever needs one prefix.) A file with no
-prefixed headers at all just has the first two blocks; a file with
-only one local header and no others still gets its own block for it.
-`examples/netifs.c` needs four prefixed headers across four different
-prefixes, so it gets four one-line blocks after the plain block, one
-per prefix, the blocks themselves alphabetical too (`arpa` < `net` <
-`netinet` < `sys`):
+(`examples/scan.c`.) A file with no `/`-named headers at all just has
+the first two blocks; a file with only one local header and no others
+still gets its own block for it. `examples/netifs.c` needs headers
+from four different subdirectories, but they're still just one block,
+alphabetized together same as anywhere else:
 
 ```c
 #include <arpa/inet.h>
-
 #include <net/if.h>
-
 #include <netinet/in.h>
-
 #include <sys/socket.h>
 ```
 

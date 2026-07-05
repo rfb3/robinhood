@@ -14,11 +14,8 @@
 #include <string.h>
 
 #include <arpa/inet.h>
-
 #include <net/if.h>
-
 #include <netinet/in.h>
-
 #include <sys/socket.h>
 
 // `address` is already rendered to text (inet_ntop()) at insertion
@@ -27,7 +24,7 @@
 struct interface_info
 {
     unsigned int flags;
-    char         address [INET6_ADDRSTRLEN];
+    char         address[INET6_ADDRSTRLEN];
 };
 
 // ===========================================================================
@@ -93,26 +90,26 @@ format_flags(char* buffer, size_t buffer_size, unsigned int flags)
     {
         unsigned int bit;
         const char*  name;
-    } known_flags [] = {
+    } known_flags[] = {
         {IFF_UP, "UP"},
         {IFF_LOOPBACK, "LOOPBACK"},
         {IFF_RUNNING, "RUNNING"},
     };
 
     size_t position   = 0;
-    size_t flag_count = sizeof(known_flags) / sizeof(known_flags [0]);
-    buffer [0]        = '\0';
+    size_t flag_count = sizeof(known_flags) / sizeof(known_flags[0]);
+    buffer[0]         = '\0';
 
     for (size_t index = 0; index < flag_count; ++index)
     {
-        if ((flags & known_flags [index].bit) == 0)
+        if ((flags & known_flags[index].bit) == 0)
         {
             continue;
         }
 
         int written =
             snprintf(buffer + position, buffer_size - position, "%s%s",
-                     (position == 0) ? "" : ",", known_flags [index].name);
+                     (position == 0) ? "" : ",", known_flags[index].name);
 
         if ((written < 0) || (((size_t)written) >= (buffer_size - position)))
         {
@@ -128,7 +125,7 @@ main(int argc, char** argv)
 {
     if (argc != 1)
     {
-        print_usage(argv [0]);
+        print_usage(argv[0]);
         return 2;
     }
 
@@ -136,7 +133,7 @@ main(int argc, char** argv)
 
     if (getifaddrs(&addresses) != 0)
     {
-        fprintf(stderr, "%s: getifaddrs: %s\n", argv [0], strerror(errno));
+        fprintf(stderr, "%s: getifaddrs: %s\n", argv[0], strerror(errno));
         return 1;
     }
 
@@ -151,7 +148,7 @@ main(int argc, char** argv)
         }
 
         const char* family_name;
-        char        address [INET6_ADDRSTRLEN];
+        char        address[INET6_ADDRSTRLEN];
 
         if (entry->ifa_addr->sa_family == AF_INET)
         {
@@ -178,7 +175,7 @@ main(int argc, char** argv)
             continue;
         }
 
-        char key [128];
+        char key[128];
         build_key(key, sizeof(key), table, entry->ifa_name, family_name);
 
         struct interface_info* info =
@@ -219,7 +216,7 @@ main(int argc, char** argv)
 
     for (it = rhi_create(table); !rhi_is_finished(it); rhi_advance(it))
     {
-        keys [index] = rhi_key(it);
+        keys[index] = rhi_key(it);
         ++index;
     }
 
@@ -230,11 +227,11 @@ main(int argc, char** argv)
     for (size_t rank = 0; rank < entry_count; ++rank)
     {
         struct interface_info* info =
-            (struct interface_info*)(rh_get(table, keys [rank], NULL));
-        char flags_text [64];
+            (struct interface_info*)(rh_get(table, keys[rank], NULL));
+        char flags_text[64];
 
         format_flags(flags_text, sizeof(flags_text), info->flags);
-        printf("%-20s %-40s %s\n", keys [rank], info->address, flags_text);
+        printf("%-20s %-40s %s\n", keys[rank], info->address, flags_text);
 
         free(info);
     }

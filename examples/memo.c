@@ -36,7 +36,7 @@ print_usage(const char* program_name);
 static uint64_t
 fibonacci_memo(RHTable table, int n, struct fibonacci_stats* stats)
 {
-    char key [16];
+    char key[16];
     snprintf(key, sizeof(key), "%d", n);
 
     if (rh_has(table, key))
@@ -78,17 +78,17 @@ main(int argc, char** argv)
 {
     if (argc != 2)
     {
-        print_usage(argv [0]);
+        print_usage(argv[0]);
         return 2;
     }
 
     char*    end = NULL;
-    long int n   = strtol(argv [1], &end, 10);
-    bool valid = (end != argv [1]) && (*end == '\0') && (n >= 0) && (n <= 90);
+    long int n   = strtol(argv[1], &end, 10);
+    bool valid = (end != argv[1]) && (*end == '\0') && (n >= 0) && (n <= 90);
 
     if (!valid)
     {
-        print_usage(argv [0]);
+        print_usage(argv[0]);
         return 2;
     }
 
@@ -108,7 +108,7 @@ main(int argc, char** argv)
     if (n >= 2)
     {
         int  k = (int)(n / 2);
-        char k_key [16];
+        char k_key[16];
         snprintf(k_key, sizeof(k_key), "%d", k);
 
         stats.hits   = 0;

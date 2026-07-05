@@ -114,6 +114,10 @@ rhi_advance_to_used(RHIterator iterator);
 static uint64_t
 string_hash(const char* text);
 
+// ===========================================================================
+// Function definitions
+// ===========================================================================
+
 static size_t
 next_power_of_two(size_t n)
 {
@@ -151,7 +155,7 @@ rh_find_index(RHTable     table,
 
     while (true)
     {
-        RHEntry* slot = &entries [pos];
+        RHEntry* slot = &entries[pos];
 
         if (RHE_STATE(*slot) == EMPTY)
         {
@@ -190,7 +194,7 @@ rh_insert_unique(RHTable table, char* key, uint64_t hash, void* value)
 
     while (true)
     {
-        RHEntry* slot = &entries [pos];
+        RHEntry* slot = &entries[pos];
 
         if (RHE_STATE(*slot) == EMPTY)
         {
@@ -243,11 +247,11 @@ rh_maybe_grow(RHTable table)
     RH_SET_COUNT(table, 0);
     for (size_t index = 0; index < old_capacity; ++index)
     {
-        if (RHE_STATE(old_entries [index]) == USED)
+        if (RHE_STATE(old_entries[index]) == USED)
         {
-            rh_insert_unique(table, RHE_KEY(old_entries [index]),
-                             RHE_HASH(old_entries [index]),
-                             RHE_VALUE(old_entries [index]));
+            rh_insert_unique(table, RHE_KEY(old_entries[index]),
+                             RHE_HASH(old_entries[index]),
+                             RHE_VALUE(old_entries[index]));
         }
     }
 
@@ -277,22 +281,22 @@ rh_clear(RHTable table, const char* key)
 
     size_t   mask    = RH_CAPACITY(table) - 1;
     RHEntry* entries = RH_ENTRIES(table);
-    free(RHE_KEY(entries [index]));
+    free(RHE_KEY(entries[index]));
 
     size_t gap  = index;
     size_t next = (gap + 1) & mask;
-    while ((RHE_STATE(entries [next]) == USED) &&
-           (RHE_DISTANCE(entries [next]) > 0))
+    while ((RHE_STATE(entries[next]) == USED) &&
+           (RHE_DISTANCE(entries[next]) > 0))
     {
-        entries [gap] = entries [next];
-        RHE_SET_DISTANCE(entries [gap], RHE_DISTANCE(entries [gap]) - 1);
+        entries[gap] = entries[next];
+        RHE_SET_DISTANCE(entries[gap], RHE_DISTANCE(entries[gap]) - 1);
         gap  = next;
         next = (next + 1) & mask;
     }
 
-    RHE_SET_STATE(entries [gap], EMPTY);
-    RHE_SET_KEY(entries [gap], NULL);
-    RHE_SET_VALUE(entries [gap], NULL);
+    RHE_SET_STATE(entries[gap], EMPTY);
+    RHE_SET_KEY(entries[gap], NULL);
+    RHE_SET_VALUE(entries[gap], NULL);
     RH_SET_COUNT(table, RH_COUNT(table) - 1);
 }
 
@@ -358,9 +362,9 @@ rh_empty(RHTable table)
 
     for (size_t index = 0; index < capacity; ++index)
     {
-        if (RHE_STATE(entries [index]) == USED)
+        if (RHE_STATE(entries[index]) == USED)
         {
-            free(RHE_KEY(entries [index]));
+            free(RHE_KEY(entries[index]));
         }
     }
     memset(entries, 0, capacity * sizeof(struct RHEntry_struct));
@@ -375,7 +379,7 @@ rh_get(RHTable table, const char* key, void* not_found_result)
 
     if (rh_find_index(table, key, hash, &index))
     {
-        return RHE_VALUE(RH_ENTRIES(table) [index]);
+        return RHE_VALUE(RH_ENTRIES(table)[index]);
     }
 
     return not_found_result;
@@ -403,23 +407,23 @@ rh_probe_stats(RHTable table, struct RHProbeStats* out_stats)
 
     for (size_t bucket = 0; bucket < RH_PROBE_HISTOGRAM_BUCKETS; ++bucket)
     {
-        out_stats->histogram [bucket] = 0;
+        out_stats->histogram[bucket] = 0;
     }
 
     for (size_t index = 0; index < capacity; ++index)
     {
-        if (RHE_STATE(entries [index]) != USED)
+        if (RHE_STATE(entries[index]) != USED)
         {
             continue;
         }
 
-        size_t distance = RHE_DISTANCE(entries [index]);
+        size_t distance = RHE_DISTANCE(entries[index]);
         size_t bucket   = (distance < RH_PROBE_HISTOGRAM_BUCKETS)
                               ? distance
                               : (RH_PROBE_HISTOGRAM_BUCKETS - 1);
 
         ++count;
-        ++out_stats->histogram [bucket];
+        ++out_stats->histogram[bucket];
         sum += (double)distance;
         sum_squares += ((double)distance) * ((double)distance);
 
@@ -454,7 +458,7 @@ rh_set(RHTable table, const char* key, void* value)
 
     if (rh_find_index(table, key, hash, &index))
     {
-        RHE_SET_VALUE(RH_ENTRIES(table) [index], value);
+        RHE_SET_VALUE(RH_ENTRIES(table)[index], value);
         return true;
     }
 
@@ -482,7 +486,7 @@ rhi_advance_to_used(RHIterator iterator)
     RHEntry* entries  = RH_ENTRIES(RHI_TABLE(iterator));
 
     while ((RHI_POSITION(iterator) < capacity) &&
-           (RHE_STATE(entries [RHI_POSITION(iterator)]) != USED))
+           (RHE_STATE(entries[RHI_POSITION(iterator)]) != USED))
     {
         RHI_SET_POSITION(iterator, RHI_POSITION(iterator) + 1);
     }
@@ -536,7 +540,7 @@ rhi_key(RHIterator iterator)
         return (const char*)NULL;
     }
 
-    return RHE_KEY(RH_ENTRIES(RHI_TABLE(iterator)) [RHI_POSITION(iterator)]);
+    return RHE_KEY(RH_ENTRIES(RHI_TABLE(iterator))[RHI_POSITION(iterator)]);
 }
 
 extern void

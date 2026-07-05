@@ -44,7 +44,7 @@ struct scan_context
     size_t       excludes_count;
     RHTable      table;
 
-    char   path_buffer [PATH_MAX];
+    char   path_buffer[PATH_MAX];
     size_t path_length;
 
     size_t unreadable_count;
@@ -105,7 +105,7 @@ main(int argc, char** argv)
         OPT_PROBE_STATS
     };
 
-    static const struct option long_options [] = {
+    static const struct option long_options[] = {
         {"cross-mounts", no_argument, NULL, OPT_CROSS_MOUNTS},
         {"follow-symlinks", no_argument, NULL, OPT_FOLLOW_SYMLINKS},
         {"exclude", required_argument, NULL, OPT_EXCLUDE},
@@ -136,22 +136,22 @@ main(int argc, char** argv)
 
             if (grown == NULL)
             {
-                fprintf(stderr, "%s: out of memory\n", argv [0]);
+                fprintf(stderr, "%s: out of memory\n", argv[0]);
                 free(excludes);
                 return 1;
             }
 
-            excludes                  = grown;
-            excludes [excludes_count] = optarg;
+            excludes                 = grown;
+            excludes[excludes_count] = optarg;
             ++excludes_count;
             break;
         }
         case 'h':
-            print_usage(argv [0]);
+            print_usage(argv[0]);
             free(excludes);
             return 0;
         default:
-            print_usage(argv [0]);
+            print_usage(argv[0]);
             free(excludes);
             return 2;
         }
@@ -159,13 +159,13 @@ main(int argc, char** argv)
 
     if (optind < argc)
     {
-        root = argv [optind];
+        root = argv[optind];
         ++optind;
     }
 
     if ((root == NULL) || (optind != argc))
     {
-        print_usage(argv [0]);
+        print_usage(argv[0]);
         free(excludes);
         return 2;
     }
@@ -177,7 +177,7 @@ main(int argc, char** argv)
 
     if (root_stat_result != 0)
     {
-        fprintf(stderr, "%s: cannot stat '%s': %s\n", argv [0], root,
+        fprintf(stderr, "%s: cannot stat '%s': %s\n", argv[0], root,
                 strerror(errno));
         free(excludes);
         return 1;
@@ -192,7 +192,7 @@ main(int argc, char** argv)
     context.excludes            = excludes;
     context.excludes_count      = excludes_count;
     context.table               = table;
-    context.path_buffer [0]     = '\0';
+    context.path_buffer[0]      = '\0';
     context.path_length         = 0;
     context.unreadable_count    = 0;
     context.excluded_root_count = 0;
@@ -257,14 +257,14 @@ path_is_excluded(const char*  path,
 {
     for (size_t index = 0; index < excludes_count; ++index)
     {
-        size_t prefix_length = strlen(excludes [index]);
+        size_t prefix_length = strlen(excludes[index]);
 
-        if (strncmp(path, excludes [index], prefix_length) != 0)
+        if (strncmp(path, excludes[index], prefix_length) != 0)
         {
             continue;
         }
 
-        if ((path [prefix_length] == '\0') || (path [prefix_length] == '/'))
+        if ((path[prefix_length] == '\0') || (path[prefix_length] == '/'))
         {
             return true;
         }
@@ -284,18 +284,18 @@ print_probe_stats(const struct RHProbeStats* stats)
     {
         double percent = (stats->count == 0)
                              ? 0.0
-                             : (100.0 * (double)(stats->histogram [index]) /
+                             : (100.0 * (double)(stats->histogram[index]) /
                                 (double)(stats->count));
 
         if (index == (RH_PROBE_HISTOGRAM_BUCKETS - 1))
         {
             printf("  distance %zu+: %zu (%.1f%%)\n", index,
-                   stats->histogram [index], percent);
+                   stats->histogram[index], percent);
         }
         else
         {
             printf("  distance %zu: %zu (%.1f%%)\n", index,
-                   stats->histogram [index], percent);
+                   stats->histogram[index], percent);
         }
     }
 }
@@ -367,10 +367,10 @@ walk(int                    dir_fd,
      struct scan_context*   context,
      const struct ancestor* parent)
 {
-    size_t saved_length  = context->path_length;
-    size_t name_length   = strlen(name);
-    bool   need_slash    = (saved_length > 0) &&
-                           (context->path_buffer [saved_length - 1] != '/');
+    size_t saved_length = context->path_length;
+    size_t name_length  = strlen(name);
+    bool   need_slash =
+        (saved_length > 0) && (context->path_buffer[saved_length - 1] != '/');
     size_t needed_length = saved_length + (need_slash ? 1 : 0) + name_length;
 
     if (needed_length >= PATH_MAX)
@@ -391,8 +391,8 @@ walk(int                    dir_fd,
 
     walk_body(dir_fd, name, context, parent);
 
-    context->path_length                = saved_length;
-    context->path_buffer [saved_length] = '\0';
+    context->path_length               = saved_length;
+    context->path_buffer[saved_length] = '\0';
 }
 
 // Does the actual per-entry work for the path walk() just appended to

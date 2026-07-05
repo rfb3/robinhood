@@ -141,7 +141,7 @@ test_lifecycle(void);
 static int
 test_probe_stats(void);
 
-static const struct test tests [] = {
+static const struct test tests[] = {
     {"basic_operations", test_basic_operations},
     {"deletion", test_deletion},
     {"directory_scan", test_directory_scan},
@@ -151,7 +151,7 @@ static const struct test tests [] = {
     {"probe_stats", test_probe_stats},
 };
 
-#define TEST_COUNT (sizeof(tests) / sizeof(tests [0]))
+#define TEST_COUNT (sizeof(tests) / sizeof(tests[0]))
 
 // nftw's callback signature has no user-data parameter, so the table it
 // populates is threaded through this file-scope variable instead.
@@ -206,7 +206,7 @@ static RHTable
 make_populated_table(size_t initial_capacity, int count)
 {
     RHTable table = rh_create(initial_capacity);
-    char    key [16];
+    char    key[16];
 
     for (int index = 0; index < count; ++index)
     {
@@ -224,9 +224,9 @@ run_all_tests(void)
 
     for (size_t index = 0; index < TEST_COUNT; ++index)
     {
-        int errors = run_test_isolated(tests [index].function);
+        int errors = run_test_isolated(tests[index].function);
 
-        printf("%s: %s", tests [index].name, (errors == 0) ? "PASS" : "FAIL");
+        printf("%s: %s", tests[index].name, (errors == 0) ? "PASS" : "FAIL");
         if (errors != 0)
         {
             printf(" (%d error%s)", errors, (errors == 1) ? "" : "s");
@@ -248,7 +248,7 @@ run_all_tests(void)
 static int
 run_test_isolated(int (*function)(void))
 {
-    int pipe_fds [2];
+    int pipe_fds[2];
 
     if (pipe(pipe_fds) != 0)
     {
@@ -259,31 +259,31 @@ run_test_isolated(int (*function)(void))
 
     if (pid < 0)
     {
-        close(pipe_fds [0]);
-        close(pipe_fds [1]);
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
         return function(); // Fall back to running in-process.
     }
 
     if (pid == 0)
     {
-        close(pipe_fds [0]);
+        close(pipe_fds[0]);
 
         int     errors  = function();
-        ssize_t written = write(pipe_fds [1], &errors, sizeof(errors));
+        ssize_t written = write(pipe_fds[1], &errors, sizeof(errors));
         (void)written;
 
-        close(pipe_fds [1]);
+        close(pipe_fds[1]);
 #ifdef RH_COVERAGE_BUILD
         __gcov_dump();
 #endif
         _exit(0);
     }
 
-    close(pipe_fds [1]);
+    close(pipe_fds[1]);
 
     int     errors     = 0;
-    ssize_t bytes_read = read(pipe_fds [0], &errors, sizeof(errors));
-    close(pipe_fds [0]);
+    ssize_t bytes_read = read(pipe_fds[0], &errors, sizeof(errors));
+    close(pipe_fds[0]);
 
     int status;
     waitpid(pid, &status, 0);
@@ -369,7 +369,7 @@ test_deletion(void)
     // Delete every other key out of a larger, collision-heavy table and
     // confirm the rest survive the backward shift
     RHTable small = make_populated_table(4, 64);
-    char    key [16];
+    char    key[16];
 
     for (int index = 0; index < 64; index += 2)
     {
@@ -413,7 +413,7 @@ test_directory_scan(void)
     CHECK_EQ_INT(0, walk_result);
     CHECK(rh_count(table) > 0);
 
-    char known_path [512];
+    char known_path[512];
     snprintf(known_path, sizeof(known_path), "%s/src/robinhood.c", scan_root);
 
     struct stat direct_stat;
@@ -451,7 +451,7 @@ test_growth(void)
     // Force enough collisions/growth to exercise Robin Hood probing and
     // resize
     RHTable small = make_populated_table(4, 64);
-    char    key [16];
+    char    key[16];
 
     CHECK_EQ_INT(64, rh_count(small));
     CHECK(rh_capacity(small) > 4);
@@ -494,7 +494,7 @@ test_iteration(void)
     // Iterate a table with gaps and confirm we visit exactly the
     // surviving keys, each exactly once
     RHTable small = make_populated_table(4, 64);
-    char    key [16];
+    char    key[16];
 
     for (int index = 0; index < 64; index += 2)
     {
@@ -502,8 +502,8 @@ test_iteration(void)
         rh_clear(small, key);
     }
 
-    bool   seen [64] = {false};
-    size_t visited   = 0;
+    bool   seen[64] = {false};
+    size_t visited  = 0;
 
     RHIterator it;
 
@@ -513,8 +513,8 @@ test_iteration(void)
         int         index;
 
         CHECK_EQ_INT(1, sscanf(visited_key, "key%d", &index));
-        CHECK(!seen [index]);
-        seen [index] = true;
+        CHECK(!seen[index]);
+        seen[index] = true;
         ++visited;
     }
 
@@ -535,7 +535,7 @@ test_iteration(void)
 
     for (int index = 0; index < 64; ++index)
     {
-        CHECK_EQ_INT(seen [index], (index % 2 == 1));
+        CHECK_EQ_INT(seen[index], (index % 2 == 1));
     }
 
     rh_destroy(&small);
@@ -549,7 +549,7 @@ test_lifecycle(void)
     int errors = 0;
 
     RHTable small = make_populated_table(4, 64);
-    char    key [16];
+    char    key[16];
 
     rh_empty(small);
     CHECK_EQ_INT(0, rh_count(small));
@@ -626,7 +626,7 @@ test_probe_stats(void)
 
     for (size_t index = 0; index < RH_PROBE_HISTOGRAM_BUCKETS; ++index)
     {
-        histogram_total += stats.histogram [index];
+        histogram_total += stats.histogram[index];
     }
     CHECK_EQ_INT(histogram_total, stats.count);
 
