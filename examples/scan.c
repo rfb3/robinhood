@@ -17,13 +17,13 @@
 // Headers, etc.
 // Type definitions
 // File-local prototypes
+// main(int,char**)
 // path_is_excluded(const char*,const char**,size_t)
+// print_probe_stats(const struct RHProbeStats*)
+// print_usage(const char*)
 // store_entry(RHTable,const char*,const struct stat*)
 // walk(int,const char*,struct scan_context*,const struct ancestor*)
 // walk_body(int,const char*,struct scan_context*,const struct ancestor*)
-// print_probe_stats(const struct RHProbeStats*)
-// print_usage(const char*)
-// main(int,char**)
 
 //
 // Headers, etc.
@@ -120,278 +120,6 @@ walk_body (int                    dir_fd,
            const char*            name,
            struct scan_context*   context,
            const struct ancestor* parent);
-
-//
-// path_is_excluded(const char*,const char**,size_t)
-//
-
-static
-bool
-path_is_excluded (const char*  path,
-                  const char** excludes,
-                  size_t       excludes_count)
-{
-    for (size_t index = 0; index < excludes_count; ++index)
-    {
-        size_t prefix_length = strlen (excludes [index]);
-
-        if (strncmp (path, excludes [index], prefix_length) != 0)
-        {
-            continue;
-        }
-
-        if ((path [prefix_length] == '\0')
-            || (path [prefix_length] == '/'))
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-//
-// store_entry(RHTable,const char*,const struct stat*)
-//
-
-static
-void
-store_entry (RHTable            table,
-             const char*        path,
-             const struct stat* entry_stat)
-{
-    struct stat* stat_copy = (struct stat*)(malloc (sizeof (struct stat)));
-
-    if (stat_copy == NULL)
-    {
-        return;
-    }
-
-    memcpy (stat_copy, entry_stat, sizeof (struct stat));
-    rh_set (table, path, stat_copy);
-}
-
-//
-// walk(int,const char*,struct scan_context*,const struct ancestor*)
-//
-
-// Manages a single shared path buffer (`context->path_buffer`) instead of
-// building a fresh string per call: appends `name` before recursing into
-// walk_body(), then truncates back afterward. This bounds stack usage to
-// one PATH_MAX buffer for the whole scan regardless of tree depth, unlike
-// a per-call stack buffer whose footprint would grow with recursion depth.
-// (This is a robustness property, not a throughput one -- the analogous
-// fstatat/openat change showed no measurable speed difference on this
-// workload; see PERFORMANCE.md.) Safe to mutate the buffer after handing
-// a path to store_entry(): rh_set() copies the key string itself, so the
-// table never holds a pointer into this shared, mutable buffer.
-static
-void
-walk (int                    dir_fd,
-      const char*            name,
-      struct scan_context*   context,
-      const struct ancestor* parent)
-{
-    size_t saved_length = context->path_length;
-    size_t name_length  = strlen (name);
-    bool   need_slash
-        = (saved_length > 0)
-          && (context->path_buffer [saved_length - 1] != '/');
-    size_t needed_length = saved_length + (need_slash ? 1 : 0) + name_length;
-
-    if (needed_length >= PATH_MAX)
-    {
-        ++context->unreadable_count;
-        return;
-    }
-
-    char* dest = context->path_buffer + saved_length;
-
-    if (need_slash)
-    {
-        *(dest++) = '/';
-    }
-
-    memcpy (dest, name, name_length + 1);
-    context->path_length = needed_length;
-
-    walk_body (dir_fd, name, context, parent);
-
-    context->path_length = saved_length;
-    context->path_buffer [saved_length] = '\0';
-}
-
-//
-// walk_body(int,const char*,struct scan_context*,const struct ancestor*)
-//
-
-// Does the actual per-entry work for the path walk() just appended to
-// `context->path_buffer`. `name` is resolved via `fstatat`/`openat`
-// relative to the already-open `dir_fd` (or AT_FDCWD for the initial
-// call); `context->path_buffer` holds the accumulated full path, used
-// only for bookkeeping (table key, exclusion matching) and never touched
-// by a syscall itself. Failures (stat, opendir) are local to the
-// entry/subtree they occur on -- unlike nftw on this platform, one bad
-// entry can't abort the whole scan.
-static
-void
-walk_body (int                    dir_fd,
-           const char*            name,
-           struct scan_context*   context,
-           const struct ancestor* parent)
-{
-    const char* full_path = context->path_buffer;
-
-    if (path_is_excluded (full_path,
-                           context->excludes,
-                           context->excludes_count))
-    {
-        ++context->excluded_root_count;
-        return;
-    }
-
-    struct stat entry_stat;
-    int stat_flags = context->follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
-    int stat_result = fstatat (dir_fd, name, &entry_stat, stat_flags);
-
-    if (stat_result != 0)
-    {
-        ++context->unreadable_count;
-        return;
-    }
-
-    bool crosses_mount
-        = (!context->cross_mounts)
-          && (entry_stat.st_dev != context->root_device);
-
-    store_entry (context->table, full_path, &entry_stat);
-
-    if (crosses_mount || !S_ISDIR (entry_stat.st_mode))
-    {
-        return;
-    }
-
-    for (const struct ancestor* ancestor = parent;
-         ancestor != NULL;
-         ancestor = ancestor->parent)
-    {
-        if ((ancestor->device == entry_stat.st_dev)
-            && (ancestor->inode == entry_stat.st_ino))
-        {
-            return;
-        }
-    }
-
-    int child_dir_fd = openat (dir_fd, name, O_RDONLY | O_DIRECTORY);
-
-    if (child_dir_fd < 0)
-    {
-        ++context->unreadable_count;
-        return;
-    }
-
-    DIR* directory = fdopendir (child_dir_fd);
-
-    if (directory == NULL)
-    {
-        close (child_dir_fd);
-        ++context->unreadable_count;
-        return;
-    }
-
-    struct ancestor self;
-    self.device = entry_stat.st_dev;
-    self.inode  = entry_stat.st_ino;
-    self.parent = parent;
-
-    struct dirent* entry;
-
-    while ((entry = readdir (directory)) != NULL)
-    {
-        if ((strcmp (entry->d_name, ".") == 0)
-            || (strcmp (entry->d_name, "..") == 0))
-        {
-            continue;
-        }
-
-        walk (child_dir_fd, entry->d_name, context, &self);
-    }
-
-    closedir (directory);
-}
-
-//
-// print_probe_stats(const struct RHProbeStats*)
-//
-
-static
-void
-print_probe_stats (const struct RHProbeStats* stats)
-{
-    printf ("probe depth: mean=%.2f stddev=%.2f max=%zu (n=%zu)\n",
-            stats->mean_distance, stats->stddev_distance,
-            stats->max_distance, stats->count);
-
-    for (size_t index = 0; index < RH_PROBE_HISTOGRAM_BUCKETS; ++index)
-    {
-        double percent
-            = (stats->count == 0) ? 0.0
-              : (100.0 * (double)(stats->histogram [index])
-                 / (double)(stats->count));
-
-        if (index == (RH_PROBE_HISTOGRAM_BUCKETS - 1))
-        {
-            printf ("  distance %zu+: %zu (%.1f%%)\n",
-                    index, stats->histogram [index], percent);
-        }
-        else
-        {
-            printf ("  distance %zu: %zu (%.1f%%)\n",
-                    index, stats->histogram [index], percent);
-        }
-    }
-}
-
-//
-// print_usage(const char*)
-//
-
-static
-void
-print_usage (const char* program_name)
-{
-    fprintf (stderr,
-             "usage: %s [--cross-mounts] [--follow-symlinks]"
-             " [--exclude PATH]...\n"
-             "       [--probe-stats] [--resize-threshold PERCENT]"
-             " <directory>\n"
-             "\n"
-             "  --cross-mounts     do not stop at filesystem/mount"
-             " boundaries.\n"
-             "                     Default: stay on the starting"
-             " filesystem.\n"
-             "  --follow-symlinks  follow symlinked directories instead"
-             " of\n"
-             "                     treating them as leaves. Default: do"
-             " not.\n"
-             "  --exclude PATH     skip this path and everything under"
-             " it.\n"
-             "                     Repeatable.\n"
-             "  --probe-stats      print Robin Hood probe-depth"
-             " statistics (mean,\n"
-             "                     max, stddev, a histogram) after the"
-             " scan.\n"
-             "                     Default: don't -- see PERFORMANCE.md"
-             " for why\n"
-             "                     that's the default despite negligible"
-             " overhead.\n"
-             "  --resize-threshold PERCENT\n"
-             "                     load factor (1-100) at which the"
-             " table grows.\n"
-             "                     Default: 80 -- see"
-             " rh_set_resize_threshold().\n",
-             program_name);
-}
 
 //
 // main(int,char**)
@@ -581,4 +309,277 @@ main (int    argc,
     free (excludes);
 
     return 0;
+}
+
+//
+// path_is_excluded(const char*,const char**,size_t)
+//
+
+static
+bool
+path_is_excluded (const char*  path,
+                  const char** excludes,
+                  size_t       excludes_count)
+{
+    for (size_t index = 0; index < excludes_count; ++index)
+    {
+        size_t prefix_length = strlen (excludes [index]);
+
+        if (strncmp (path, excludes [index], prefix_length) != 0)
+        {
+            continue;
+        }
+
+        if ((path [prefix_length] == '\0')
+            || (path [prefix_length] == '/'))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//
+// print_probe_stats(const struct RHProbeStats*)
+//
+
+static
+void
+print_probe_stats (const struct RHProbeStats* stats)
+{
+    printf ("probe depth: mean=%.2f stddev=%.2f max=%zu (n=%zu)\n",
+            stats->mean_distance, stats->stddev_distance,
+            stats->max_distance, stats->count);
+
+    for (size_t index = 0; index < RH_PROBE_HISTOGRAM_BUCKETS; ++index)
+    {
+        double percent
+            = (stats->count == 0) ? 0.0
+              : (100.0 * (double)(stats->histogram [index])
+                 / (double)(stats->count));
+
+        if (index == (RH_PROBE_HISTOGRAM_BUCKETS - 1))
+        {
+            printf ("  distance %zu+: %zu (%.1f%%)\n",
+                    index, stats->histogram [index], percent);
+        }
+        else
+        {
+            printf ("  distance %zu: %zu (%.1f%%)\n",
+                    index, stats->histogram [index], percent);
+        }
+    }
+}
+
+//
+// print_usage(const char*)
+//
+
+static
+void
+print_usage (const char* program_name)
+{
+    fprintf (stderr,
+             "usage: %s [--cross-mounts] [--follow-symlinks]"
+             " [--exclude PATH]...\n"
+             "       [--probe-stats] [--resize-threshold PERCENT]"
+             " <directory>\n"
+             "\n"
+             "  --cross-mounts     do not stop at filesystem/mount"
+             " boundaries.\n"
+             "                     Default: stay on the starting"
+             " filesystem.\n"
+             "  --follow-symlinks  follow symlinked directories instead"
+             " of\n"
+             "                     treating them as leaves. Default: do"
+             " not.\n"
+             "  --exclude PATH     skip this path and everything under"
+             " it.\n"
+             "                     Repeatable.\n"
+             "  --probe-stats      print Robin Hood probe-depth"
+             " statistics (mean,\n"
+             "                     max, stddev, a histogram) after the"
+             " scan.\n"
+             "                     Default: don't -- see PERFORMANCE.md"
+             " for why\n"
+             "                     that's the default despite negligible"
+             " overhead.\n"
+             "  --resize-threshold PERCENT\n"
+             "                     load factor (1-100) at which the"
+             " table grows.\n"
+             "                     Default: 80 -- see"
+             " rh_set_resize_threshold().\n",
+             program_name);
+}
+
+
+//
+// store_entry(RHTable,const char*,const struct stat*)
+//
+
+static
+void
+store_entry (RHTable            table,
+             const char*        path,
+             const struct stat* entry_stat)
+{
+    struct stat* stat_copy = (struct stat*)(malloc (sizeof (struct stat)));
+
+    if (stat_copy == NULL)
+    {
+        return;
+    }
+
+    memcpy (stat_copy, entry_stat, sizeof (struct stat));
+    rh_set (table, path, stat_copy);
+}
+
+//
+// walk(int,const char*,struct scan_context*,const struct ancestor*)
+//
+
+// Manages a single shared path buffer (`context->path_buffer`) instead of
+// building a fresh string per call: appends `name` before recursing into
+// walk_body(), then truncates back afterward. This bounds stack usage to
+// one PATH_MAX buffer for the whole scan regardless of tree depth, unlike
+// a per-call stack buffer whose footprint would grow with recursion depth.
+// (This is a robustness property, not a throughput one -- the analogous
+// fstatat/openat change showed no measurable speed difference on this
+// workload; see PERFORMANCE.md.) Safe to mutate the buffer after handing
+// a path to store_entry(): rh_set() copies the key string itself, so the
+// table never holds a pointer into this shared, mutable buffer.
+static
+void
+walk (int                    dir_fd,
+      const char*            name,
+      struct scan_context*   context,
+      const struct ancestor* parent)
+{
+    size_t saved_length = context->path_length;
+    size_t name_length  = strlen (name);
+    bool   need_slash
+        = (saved_length > 0)
+          && (context->path_buffer [saved_length - 1] != '/');
+    size_t needed_length = saved_length + (need_slash ? 1 : 0) + name_length;
+
+    if (needed_length >= PATH_MAX)
+    {
+        ++context->unreadable_count;
+        return;
+    }
+
+    char* dest = context->path_buffer + saved_length;
+
+    if (need_slash)
+    {
+        *(dest++) = '/';
+    }
+
+    memcpy (dest, name, name_length + 1);
+    context->path_length = needed_length;
+
+    walk_body (dir_fd, name, context, parent);
+
+    context->path_length = saved_length;
+    context->path_buffer [saved_length] = '\0';
+}
+
+//
+// walk_body(int,const char*,struct scan_context*,const struct ancestor*)
+//
+
+// Does the actual per-entry work for the path walk() just appended to
+// `context->path_buffer`. `name` is resolved via `fstatat`/`openat`
+// relative to the already-open `dir_fd` (or AT_FDCWD for the initial
+// call); `context->path_buffer` holds the accumulated full path, used
+// only for bookkeeping (table key, exclusion matching) and never touched
+// by a syscall itself. Failures (stat, opendir) are local to the
+// entry/subtree they occur on -- unlike nftw on this platform, one bad
+// entry can't abort the whole scan.
+static
+void
+walk_body (int                    dir_fd,
+           const char*            name,
+           struct scan_context*   context,
+           const struct ancestor* parent)
+{
+    const char* full_path = context->path_buffer;
+
+    if (path_is_excluded (full_path,
+                           context->excludes,
+                           context->excludes_count))
+    {
+        ++context->excluded_root_count;
+        return;
+    }
+
+    struct stat entry_stat;
+    int stat_flags = context->follow_symlinks ? 0 : AT_SYMLINK_NOFOLLOW;
+    int stat_result = fstatat (dir_fd, name, &entry_stat, stat_flags);
+
+    if (stat_result != 0)
+    {
+        ++context->unreadable_count;
+        return;
+    }
+
+    bool crosses_mount
+        = (!context->cross_mounts)
+          && (entry_stat.st_dev != context->root_device);
+
+    store_entry (context->table, full_path, &entry_stat);
+
+    if (crosses_mount || !S_ISDIR (entry_stat.st_mode))
+    {
+        return;
+    }
+
+    for (const struct ancestor* ancestor = parent;
+         ancestor != NULL;
+         ancestor = ancestor->parent)
+    {
+        if ((ancestor->device == entry_stat.st_dev)
+            && (ancestor->inode == entry_stat.st_ino))
+        {
+            return;
+        }
+    }
+
+    int child_dir_fd = openat (dir_fd, name, O_RDONLY | O_DIRECTORY);
+
+    if (child_dir_fd < 0)
+    {
+        ++context->unreadable_count;
+        return;
+    }
+
+    DIR* directory = fdopendir (child_dir_fd);
+
+    if (directory == NULL)
+    {
+        close (child_dir_fd);
+        ++context->unreadable_count;
+        return;
+    }
+
+    struct ancestor self;
+    self.device = entry_stat.st_dev;
+    self.inode  = entry_stat.st_ino;
+    self.parent = parent;
+
+    struct dirent* entry;
+
+    while ((entry = readdir (directory)) != NULL)
+    {
+        if ((strcmp (entry->d_name, ".") == 0)
+            || (strcmp (entry->d_name, "..") == 0))
+        {
+            continue;
+        }
+
+        walk (child_dir_fd, entry->d_name, context, &self);
+    }
+
+    closedir (directory);
 }
