@@ -63,7 +63,7 @@ fight standard tooling.
   doesn't apply to the others (`char* a, b;` makes `b` a plain `char`,
   not a pointer).
 - `//` exclusively, for every comment in this codebase — on its own line
-  and trailing actual code on the same line alike, e.g. `return 0;   //
+  and trailing actual code on the same line alike, e.g. `return 0; //
   overflow` (`src/robinhood.c`: `next_power_of_two`). No `/* ... */`
   comments anywhere, including short same-line annotations — a trailing
   `//` is always the last thing on its line by construction, so it works
@@ -90,14 +90,15 @@ This applies to function declarations/definitions only, not variables —
 a `static`/`extern` variable keeps its linkage keyword on the same line
 as its type: `static int errors = 0;`, `extern char** environ;`.
 
-Parameters stay on the same line as the function name as long as the
-whole signature fits within the 78-column limit — this covers most
-functions here, including two-and-three-parameter ones like
-`rh_clear(RHTable table, const char* key)`. Once a signature doesn't
-fit, every parameter moves to its own line — in both prototypes and
-definitions, not just prototypes — with types padded so every parameter
-name lines up in the same column (pad each type to the width of the
-widest type in the list, plus one space):
+The function name and its first parameter always share one line. When
+the whole signature fits within the 78-column limit, every remaining
+parameter joins them there too — this covers most functions here,
+including two-and-three-parameter ones like `rh_clear(RHTable table,
+const char* key)`. Once a signature doesn't fit, the first parameter
+still stays put, but every parameter after it moves to its own line —
+in both prototypes and definitions, not just prototypes — with types
+padded so every parameter name lines up in the same column (pad each
+type to the width of the widest type in the list, plus one space):
 
 ```c
 static bool
@@ -164,15 +165,21 @@ not just preferred.
 
 ## Includes
 
-Group `#include` directives into up to three blank-line-separated
-blocks, in this order, each sorted alphabetically within itself:
+Group `#include` directives into blank-line-separated blocks, in this
+order, each sorted alphabetically within itself:
 
 1. This project's own headers, in quotes (`"robinhood.h"`) — kept
    separate and first so a missing or wrong local include shows up
    immediately, rather than being hidden behind whatever transitively
    pulls it in from a system header.
-2. "Regular" system/library headers in angle brackets.
-3. `<sys/...>` headers, split out into their own trailing block.
+2. "Regular" system/library headers with no directory prefix, in angle
+   brackets (`<stdio.h>`, `<stdlib.h>`, etc.).
+3. Everything else in angle brackets — headers with a directory prefix
+   like `<sys/...>` or `<netinet/...>` — grouped one prefix per block,
+   not lumped into a single trailing block together: each distinct
+   prefix gets its own block, separated from the others (and from the
+   plain block above) by a blank line, with the blocks themselves in
+   alphabetical order by prefix.
 
 ```c
 #include "robinhood.h"
@@ -192,13 +199,27 @@ blocks, in this order, each sorted alphabetically within itself:
 #include <sys/stat.h>
 ```
 
-(`examples/scan.c`.) A file with no `<sys/...>` headers just has the
-first two blocks; a file with only one local header and no others
-still gets its own block for it. Only include a header if the file
-actually uses something it declares — don't include one "just in
-case," and drop one the moment nothing in the file needs it anymore
-(e.g. a leftover `<assert.h>` after the last `assert()` call is
-removed).
+(`examples/scan.c`, which only ever needs one prefix.) A file with no
+prefixed headers at all just has the first two blocks; a file with
+only one local header and no others still gets its own block for it.
+`examples/netifs.c` needs four prefixed headers across four different
+prefixes, so it gets four one-line blocks, each its own prefix, after
+the plain block:
+
+```c
+#include <arpa/inet.h>
+
+#include <net/if.h>
+
+#include <netinet/in.h>
+
+#include <sys/socket.h>
+```
+
+Only include a header if the file actually uses something it
+declares — don't include one "just in case," and drop one the moment
+nothing in the file needs it anymore (e.g. a leftover `<assert.h>`
+after the last `assert()` call is removed).
 
 Relying on one *standard* header to transitively guarantee another
 *standard* header's symbols is fine, since that relationship is a
@@ -257,8 +278,9 @@ Every `.c` file with more than one function gets a "File-local
 prototypes" section, right after any type definitions and before the
 first function definition, forward-declaring every function defined
 later in the file — written out in full (return type, `static` where
-applicable, real parameter names, one per line once there's more than
-one parameter), alphabetically by name, including `main` even though
+applicable, real parameter names, wrapped one per line per "Function
+declarations and definitions" above once the signature doesn't fit on
+one line), alphabetically by name, including `main` even though
 it's never `static` and normally wouldn't need forward declaring.
 Macros (e.g. `CHECK`) and struct-only definitions don't get prototype
 entries -- only actual functions do.
