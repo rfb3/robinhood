@@ -22,7 +22,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Doxygen and lcov
         run: sudo apt-get update && sudo apt-get install -y doxygen lcov
@@ -48,7 +48,7 @@ jobs:
           cp -r coverage-html/. pages-site/coverage/
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: pages-site
 
@@ -75,7 +75,7 @@ jobs:
       # if all three do.
       - name: Deploy to GitHub Pages (attempt 1)
         id: deployment1
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       - name: Wait before retry
@@ -85,7 +85,7 @@ jobs:
       - name: Deploy to GitHub Pages (attempt 2)
         id: deployment2
         if: steps.deployment1.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       - name: Wait before retry
@@ -99,4 +99,4 @@ jobs:
         if: >
           steps.deployment1.outcome == 'failure' &&
           steps.deployment2.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
