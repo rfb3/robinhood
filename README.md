@@ -236,8 +236,8 @@ traversal at all) rather than sharing one code path, so each keeps
 demonstrating the library under genuinely different real-world usage
 patterns instead of one superseding the others:
 
-- **`tester`** (`./tester`) -- the unit test suite (`make test`).
-- **`scan <directory>`** (`./scan`) -- walks a directory tree (hand-rolled
+- `tester` (`./tester`) -- the unit test suite (`make test`).
+- `scan <directory>` (`./scan`) -- walks a directory tree (hand-rolled
   `fstatat`/`openat`-based recursion, not `nftw`/`fts`) and maps each
   pathname to a copy of its `stat(2)` info. Options: `--cross-mounts`,
   `--follow-symlinks`, `--exclude PATH` (repeatable), `--probe-stats`
@@ -249,16 +249,16 @@ patterns instead of one superseding the others:
   `PERFORMANCE.md` for whether changing it is actually worth it). See
   `PERFORMANCE.md` for real-world timings, including scans of an
   entire home directory and root filesystem.
-- **`memo <n>`** (`./memo`) -- computes `fib(n)` via recursion memoized in the
+- `memo <n>` (`./memo`) -- computes `fib(n)` via recursion memoized in the
   table, demonstrating it as a cache: `rh_has`/`rh_get` for lookups,
   `rh_set` to populate a miss, and `rh_clear` to invalidate one entry
   and show the resulting partial recompute.
-- **`wordfreq [top_n]`** (`./wordfreq`) -- reads words from stdin, case-
+- `wordfreq [top_n]` (`./wordfreq`) -- reads words from stdin, case-
   folds and trims punctuation, and counts occurrences via a genuine
   read-modify-write (`rh_get` the current count, increment, `rh_set` it
   back) -- the one usage pattern none of the other examples exercise.
   Prints the `top_n` most frequent words (default: 10).
-- **`netifs`** (`./netifs`) -- enumerates this machine's network
+- `netifs` (`./netifs`) -- enumerates this machine's network
   interfaces via `getifaddrs`/`freeifaddrs`, mapping each (interface,
   address family) pair to its address and flags. IPv4/IPv6 only --
   link-layer/MAC-address entries are skipped, since their `sockaddr`
@@ -266,7 +266,7 @@ patterns instead of one superseding the others:
   can carry more than one address of the same family (e.g. multiple
   IPv6 addresses), so same-key collisions are disambiguated rather
   than silently overwritten.
-- **`environ`** (`./environ`) -- walks the process's environment into
+- `environ` (`./environ`) -- walks the process's environment into
   the table and prints it sorted by name. The simplest example: no
   syscalls beyond what the process already holds in memory, and no
   heap allocation for values at all -- each value is a borrowed
