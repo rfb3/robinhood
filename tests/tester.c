@@ -18,22 +18,22 @@
 // Type definitions
 // CHECK
 // File-local prototypes
+// Test table
+// directory_scan_visitor(const char*,const struct stat*,int,struct FTW*)
+// main(void)
 // make_key(int,char*,size_t)
 // make_populated_table(size_t,int)
+// record_warning(const char*)
+// run_all_tests(void)
 // test_basic_operations(void)
 // test_deletion(void)
-// directory_scan_visitor(const char*,const struct stat*,int,struct FTW*)
 // test_directory_scan(void)
 // test_growth(void)
 // test_iteration(void)
 // test_lifecycle(void)
 // test_probe_stats(void)
-// record_warning(const char*)
-// test_warning_handler(void)
 // test_resize_threshold(void)
-// Test table
-// run_all_tests(void)
-// main(void)
+// test_warning_handler(void)
 
 //
 // Headers, etc.
@@ -150,6 +150,77 @@ int
 test_warning_handler (void);
 
 //
+// Test table
+//
+
+static const struct test tests [] =
+{
+    { "basic_operations", test_basic_operations },
+    { "deletion",         test_deletion },
+    { "directory_scan",   test_directory_scan },
+    { "growth",           test_growth },
+    { "iteration",        test_iteration },
+    { "lifecycle",        test_lifecycle },
+    { "probe_stats",      test_probe_stats },
+    { "warning_handler",  test_warning_handler },
+    { "resize_threshold", test_resize_threshold },
+};
+
+#define TEST_COUNT (sizeof (tests) / sizeof (tests [0]))
+
+//
+// directory_scan_visitor(const char*,const struct stat*,int,struct FTW*)
+//
+
+// nftw's callback signature has no user-data parameter, so the table it
+// populates is threaded through this file-scope variable instead.
+static RHTable directory_scan_table = ((RHTable)NULL);
+
+static
+int
+directory_scan_visitor (const char*        fpath,
+                         const struct stat* file_stat,
+                         int                typeflag,
+                         struct FTW*        ftw_info)
+{
+    (void)ftw_info;
+
+    // FTW_NS means stat()/lstat() failed for this path; the stat buffer's
+    // contents are then undefined, so skip it rather than copying garbage.
+    if (typeflag == FTW_NS)
+    {
+        return 0;
+    }
+
+    struct stat* stat_copy = (struct stat*)(malloc (sizeof (struct stat)));
+
+    if (stat_copy == NULL)
+    {
+        return -1;
+    }
+
+    memcpy (stat_copy, file_stat, sizeof (struct stat));
+    rh_set (directory_scan_table, fpath, stat_copy);
+
+    return 0;
+}
+
+//
+// main(void)
+//
+
+int
+main (void)
+{
+    int total_errors = run_all_tests ();
+
+    printf ("\n%d total error%s\n",
+            total_errors, (total_errors == 1) ? "" : "s");
+
+    return (total_errors == 0) ? 0 : 1;
+}
+
+//
 // make_key(int,char*,size_t)
 //
 
@@ -181,6 +252,53 @@ make_populated_table (size_t initial_capacity,
     }
 
     return table;
+}
+
+//
+// record_warning(const char*)
+//
+
+// Captures what a custom warning handler received, so
+// test_warning_handler() can check it -- mirrors directory_scan_table
+// above: the callback signature has no user-data parameter.
+static int  warning_handler_calls = 0;
+static char warning_handler_message [256];
+
+static
+void
+record_warning (const char* message)
+{
+    ++warning_handler_calls;
+    snprintf (warning_handler_message, sizeof (warning_handler_message),
+              "%s", message);
+}
+
+//
+// run_all_tests(void)
+//
+
+static
+int
+run_all_tests (void)
+{
+    int total_errors = 0;
+
+    for (size_t index = 0; index < TEST_COUNT; ++index)
+    {
+        int errors = tests [index].function ();
+
+        printf ("%s: %s",
+                tests [index].name, (errors == 0) ? "PASS" : "FAIL");
+        if (errors != 0)
+        {
+            printf (" (%d error%s)", errors, (errors == 1) ? "" : "s");
+        }
+        printf ("\n");
+
+        total_errors += errors;
+    }
+
+    return total_errors;
 }
 
 //
@@ -286,43 +404,6 @@ test_deletion (void)
     rh_destroy (&small);
 
     return errors;
-}
-
-//
-// directory_scan_visitor(const char*,const struct stat*,int,struct FTW*)
-//
-
-// nftw's callback signature has no user-data parameter, so the table it
-// populates is threaded through this file-scope variable instead.
-static RHTable directory_scan_table = ((RHTable)NULL);
-
-static
-int
-directory_scan_visitor (const char*        fpath,
-                         const struct stat* file_stat,
-                         int                typeflag,
-                         struct FTW*        ftw_info)
-{
-    (void)ftw_info;
-
-    // FTW_NS means stat()/lstat() failed for this path; the stat buffer's
-    // contents are then undefined, so skip it rather than copying garbage.
-    if (typeflag == FTW_NS)
-    {
-        return 0;
-    }
-
-    struct stat* stat_copy = (struct stat*)(malloc (sizeof (struct stat)));
-
-    if (stat_copy == NULL)
-    {
-        return -1;
-    }
-
-    memcpy (stat_copy, file_stat, sizeof (struct stat));
-    rh_set (directory_scan_table, fpath, stat_copy);
-
-    return 0;
 }
 
 //
@@ -572,66 +653,6 @@ test_probe_stats (void)
 }
 
 //
-// record_warning(const char*)
-//
-
-// Captures what a custom warning handler received, so
-// test_warning_handler() can check it -- mirrors directory_scan_table
-// above: the callback signature has no user-data parameter.
-static int  warning_handler_calls = 0;
-static char warning_handler_message [256];
-
-static
-void
-record_warning (const char* message)
-{
-    ++warning_handler_calls;
-    snprintf (warning_handler_message, sizeof (warning_handler_message),
-              "%s", message);
-}
-
-//
-// test_warning_handler(void)
-//
-
-static
-int
-test_warning_handler (void)
-{
-    int errors = 0;
-
-    // An absurdly large capacity reliably fails calloc() without
-    // needing to actually exhaust real memory.
-    size_t huge = ((size_t)1) << 60;
-
-    warning_handler_calls       = 0;
-    warning_handler_message [0] = '\0';
-    rh_set_warning_handler (record_warning);
-
-    RHTable failed = rh_create (huge);
-    CHECK (failed == ((RHTable)NULL));
-    CHECK (1 == warning_handler_calls);
-    CHECK (strstr (warning_handler_message, "calloc") != NULL);
-
-    // NULL suppresses entirely -- confirm no further calls happen
-    warning_handler_calls = 0;
-    rh_set_warning_handler (NULL);
-    failed = rh_create (huge);
-
-    CHECK (failed == ((RHTable)NULL));
-    CHECK (0 == warning_handler_calls);
-
-    // Restore default behavior for whatever runs after this test
-    rh_set_warning_handler (rh_default_warning_handler);
-
-    // Confirm the restored handler is actually reachable, not just assigned
-    failed = rh_create (huge);
-    CHECK (failed == ((RHTable)NULL));
-
-    return errors;
-}
-
-//
 // test_resize_threshold(void)
 //
 
@@ -685,63 +706,42 @@ test_resize_threshold (void)
 }
 
 //
-// Test table
-//
-
-static const struct test tests [] =
-{
-    { "basic_operations", test_basic_operations },
-    { "deletion",         test_deletion },
-    { "directory_scan",   test_directory_scan },
-    { "growth",           test_growth },
-    { "iteration",        test_iteration },
-    { "lifecycle",        test_lifecycle },
-    { "probe_stats",      test_probe_stats },
-    { "warning_handler",  test_warning_handler },
-    { "resize_threshold", test_resize_threshold },
-};
-
-#define TEST_COUNT (sizeof (tests) / sizeof (tests [0]))
-
-//
-// run_all_tests(void)
+// test_warning_handler(void)
 //
 
 static
 int
-run_all_tests (void)
+test_warning_handler (void)
 {
-    int total_errors = 0;
+    int errors = 0;
 
-    for (size_t index = 0; index < TEST_COUNT; ++index)
-    {
-        int errors = tests [index].function ();
+    // An absurdly large capacity reliably fails calloc() without
+    // needing to actually exhaust real memory.
+    size_t huge = ((size_t)1) << 60;
 
-        printf ("%s: %s",
-                tests [index].name, (errors == 0) ? "PASS" : "FAIL");
-        if (errors != 0)
-        {
-            printf (" (%d error%s)", errors, (errors == 1) ? "" : "s");
-        }
-        printf ("\n");
+    warning_handler_calls       = 0;
+    warning_handler_message [0] = '\0';
+    rh_set_warning_handler (record_warning);
 
-        total_errors += errors;
-    }
+    RHTable failed = rh_create (huge);
+    CHECK (failed == ((RHTable)NULL));
+    CHECK (1 == warning_handler_calls);
+    CHECK (strstr (warning_handler_message, "calloc") != NULL);
 
-    return total_errors;
-}
-
-//
-// main(void)
-//
+    // NULL suppresses entirely -- confirm no further calls happen
+    warning_handler_calls = 0;
+    rh_set_warning_handler (NULL);
+    failed = rh_create (huge);
 
-int
-main (void)
-{
-    int total_errors = run_all_tests ();
+    CHECK (failed == ((RHTable)NULL));
+    CHECK (0 == warning_handler_calls);
 
-    printf ("\n%d total error%s\n",
-            total_errors, (total_errors == 1) ? "" : "s");
+    // Restore default behavior for whatever runs after this test
+    rh_set_warning_handler (rh_default_warning_handler);
 
-    return (total_errors == 0) ? 0 : 1;
+    // Confirm the restored handler is actually reachable, not just assigned
+    failed = rh_create (huge);
+    CHECK (failed == ((RHTable)NULL));
+
+    return errors;
 }
