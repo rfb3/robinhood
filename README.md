@@ -9,9 +9,8 @@ open-addressing insertion and backward-shift deletion.
 - Grows (doubling) automatically once load factor would exceed 80%.
 - Written to POSIX.1-2001 base where possible; the example tools use
   newer POSIX.1-2008 calls (`fstatat`/`openat`) where that materially
-  helps, documented in `PERFORMANCE.md`. The library itself also relies
-  on a BSD extension (`<err.h>`), and one example (`netifs`) on another
-  (`getifaddrs`) -- both checked by `./configure`.
+  helps, documented in `PERFORMANCE.md`. One example (`netifs`) also
+  relies on a BSD extension (`getifaddrs`) -- checked by `./configure`.
 
 See also: [Full API documentation][gh-pages]
 
@@ -279,15 +278,12 @@ redeployed alongside the Doxygen docs on every push to `main` (see
 
 The directory layout, the autoconf/automake/libtool build, `make
 install`/`make uninstall`, and the license are all settled now. One
-thing worth
-knowing: `src/robinhood.c` uses `<err.h>`'s `err()`/`warn()`/`warnx()`
-(a BSD extension present on macOS, the BSDs, glibc, and musl, but not
-part of POSIX), and the example programs parse their command-line
-options with `getopt_long()` (a GNU extension, also not part of
-POSIX, but likewise present on macOS, the BSDs, glibc, and musl) --
-`./configure` checks for both, along with the POSIX features the
-example programs need, and fails with a clear message if your
-toolchain is missing any of them.
+thing worth knowing: `scan` parses its command-line options with
+`getopt_long()` (a GNU extension, not part of POSIX, but present on
+macOS, the BSDs, glibc, and musl) -- `./configure` checks for it, along
+with the POSIX and BSD features the library and example programs need,
+and fails with a clear message if your toolchain is missing any of
+them.
 
 ## Further reading
 

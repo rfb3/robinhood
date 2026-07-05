@@ -14017,33 +14017,6 @@ CC=$lt_save_CC
 
 
 
-{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for err.h err()/warn()/warnx()" >&5
-printf %s "checking for err.h err()/warn()/warnx()... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <err.h>
-int main (void) { warn ("%s", "x"); warnx ("%s", "x"); return 0; }
-
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"
-then :
-  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf '%s\n' "yes" >&6; }
-else case e in #(
-  e)
-    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf '%s\n' "no" >&6; }
-    as_fn_error $? "could not compile a program using <err.h>
-err()/warn()/warnx() -- these are required by src/robinhood.c. They
-are BSD extensions, not POSIX, but are present on macOS, the BSDs,
-glibc, and musl; if your libc genuinely lacks them this library
-cannot build as currently written." "$LINENO" 5
- ;;
-esac
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for openat/fstatat/fdopendir" >&5
 printf %s "checking for openat/fstatat/fdopendir... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -14167,10 +14140,9 @@ else case e in #(
     { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf '%s\n' "no" >&6; }
     as_fn_error $? "could not compile a program using getopt_long() --
-this is required by examples/scan.c, memo.c, wordfreq.c, netifs.c, and
-environ.c for command-line argument parsing. It originated in GNU libc
-and is not part of POSIX, but is present on macOS, the BSDs, glibc,
-and musl." "$LINENO" 5
+this is required by examples/scan.c for command-line argument parsing.
+It originated in GNU libc and is not part of POSIX, but is present on
+macOS, the BSDs, glibc, and musl." "$LINENO" 5
  ;;
 esac
 fi

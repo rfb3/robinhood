@@ -26,22 +26,6 @@ AC_PROG_CC
 AM_PROG_AR
 LT_INIT
 
-dnl <err.h> err()/warn()/warnx() (used by src/robinhood.c) -- BSD
-dnl extensions, not POSIX, but present on macOS, the BSDs, glibc, and
-dnl musl.
-AC_MSG_CHECKING([for err.h err()/warn()/warnx()])
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#include <err.h>
-int main (void) { warn ("%s", "x"); warnx ("%s", "x"); return 0; }
-]])], [AC_MSG_RESULT([yes])], [
-    AC_MSG_RESULT([no])
-    AC_MSG_ERROR([[could not compile a program using <err.h>
-err()/warn()/warnx() -- these are required by src/robinhood.c. They
-are BSD extensions, not POSIX, but are present on macOS, the BSDs,
-glibc, and musl; if your libc genuinely lacks them this library
-cannot build as currently written.]])
-])
-
 dnl openat/fstatat/fdopendir (POSIX.1-2008, used by examples/scan.c)
 AC_MSG_CHECKING([for openat/fstatat/fdopendir])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -100,7 +84,7 @@ not part of POSIX, but is present on macOS, the BSDs, glibc, and
 musl.]])
 ])
 
-dnl getopt_long (GNU extension, not POSIX, used by the example programs)
+dnl getopt_long (GNU extension, not POSIX, used by examples/scan.c)
 AC_MSG_CHECKING([for getopt_long])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 #include <getopt.h>
@@ -116,10 +100,9 @@ int main (void)
 ]])], [AC_MSG_RESULT([yes])], [
     AC_MSG_RESULT([no])
     AC_MSG_ERROR([[could not compile a program using getopt_long() --
-this is required by examples/scan.c, memo.c, wordfreq.c, netifs.c, and
-environ.c for command-line argument parsing. It originated in GNU libc
-and is not part of POSIX, but is present on macOS, the BSDs, glibc,
-and musl.]])
+this is required by examples/scan.c for command-line argument parsing.
+It originated in GNU libc and is not part of POSIX, but is present on
+macOS, the BSDs, glibc, and musl.]])
 ])
 
 AC_CONFIG_FILES([Makefile robinhood.pc])
