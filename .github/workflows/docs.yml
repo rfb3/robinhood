@@ -57,8 +57,46 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment1.outputs.page_url || steps.deployment2.outputs.page_url || steps.deployment3.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      # actions/deploy-pages has a known, GitHub-side backend flakiness --
+      # intermittent "Deployment failed, try again later." on the very
+      # first status check, unrelated to anything in this repo's own build
+      # (see actions/deploy-pages#406, github/community#200823). A
+      # separate workflow_run-triggered retry workflow was tried first and
+      # dropped: re-running a workflow via the API/CLI does not generate a
+      # new workflow_run event at all, so it could never have caught its
+      # own follow-up retries even if the first one had fired reliably --
+      # which, in practice across two real failures, it didn't. Retrying
+      # in-job instead removes any dependency on a second workflow's
+      # trigger firing at all. continue-on-error on the first two attempts
+      # means their failure doesn't fail the job outright; the final
+      # attempt has no continue-on-error, so the job only actually fails
+      # if all three do.
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deployment1
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deployment1.outcome == 'failure'
+        run: sleep 15
+
+      - name: Deploy to GitHub Pages (attempt 2)
+        id: deployment2
+        if: steps.deployment1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: >
+          steps.deployment1.outcome == 'failure' &&
+          steps.deployment2.outcome == 'failure'
+        run: sleep 15
+
+      - name: Deploy to GitHub Pages (attempt 3, final)
+        id: deployment3
+        if: >
+          steps.deployment1.outcome == 'failure' &&
+          steps.deployment2.outcome == 'failure'
         uses: actions/deploy-pages@v4
