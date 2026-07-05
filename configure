@@ -14017,6 +14017,34 @@ CC=$lt_save_CC
 
 
 
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for strdup" >&5
+printf %s "checking for strdup... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <string.h>
+int main (void)
+{
+    char* s = strdup ("x");
+    return s == 0;
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf '%s\n' "yes" >&6; }
+else case e in #(
+  e)
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; }
+    as_fn_error $? "could not compile a program using strdup() -- this
+POSIX.1-2001 call is required by src/robinhood.c" "$LINENO" 5
+ ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for openat/fstatat/fdopendir" >&5
 printf %s "checking for openat/fstatat/fdopendir... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
