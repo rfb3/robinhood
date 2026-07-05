@@ -34,25 +34,19 @@ TESTS = tester
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = robinhood.pc
 
-EXTRA_DIST = README.md STYLE.md PERFORMANCE.md LICENSE Doxyfile .clang-format
+EXTRA_DIST = README.md STYLE.md PERFORMANCE.md LICENSE Doxyfile \
+             .clang-format .clang-tidy
 
 # Bypasses the built library, so this doesn't fit the _PROGRAMS/
 # _LIBRARIES model above: gcov/ASan+UBSan both need their instrumentation
 # flags baked into the compile and link steps, which the already-built
 # librobinhood.la can't be retrofitted with after the fact.
-#
-# allocator_may_return_null=1: test_warning_handler deliberately forces
-# a huge rh_create() capacity to trigger a real calloc() failure. Plain
-# libc calloc() detects the overflow and returns NULL per spec, but
-# ASan's calloc interceptor aborts on it by default (usually a sign of
-# a real bug) -- this opts out of that abort for a test that triggers
-# it on purpose.
 SANITIZE_FLAGS = -fsanitize=address,undefined -O0 -g
 
 sanitize:
 	$(CC) -I$(srcdir)/include $(SANITIZE_FLAGS) -o tester-sanitize \
 	      $(srcdir)/src/robinhood.c $(srcdir)/tests/tester.c -lm
-	ASAN_OPTIONS=allocator_may_return_null=1 ./tester-sanitize
+	./tester-sanitize
 	$(RM) tester-sanitize
 	$(RM) -r tester-sanitize.dSYM
 
