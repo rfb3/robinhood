@@ -5,7 +5,7 @@ dnl POSIX, two BSD/GNU extensions) and fails outright if any are
 dnl missing -- there's no optional/fallback behavior to gate behind
 dnl HAVE_* defines, so this deliberately doesn't generate a config.h.
 
-AC_INIT([robinhood], [1.0.0])
+AC_INIT([robinhood], [1.0.1])
 AC_CONFIG_SRCDIR([src/robinhood.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
