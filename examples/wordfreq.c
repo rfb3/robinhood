@@ -17,10 +17,10 @@
 // Headers, etc.
 // Type definitions
 // File-local prototypes
-// normalize_word(char*)
 // compare_counts_descending(const void*,const void*)
-// print_usage(const char*)
 // main(int,char**)
+// normalize_word(char*)
+// print_usage(const char*)
 
 //
 // Headers, etc.
@@ -69,43 +69,6 @@ void
 print_usage (const char* program_name);
 
 //
-// normalize_word(char*)
-//
-
-// So "Hello," and "hello" count as the same word; returns 0 if
-// nothing alphanumeric remains.
-static
-size_t
-normalize_word (char* word)
-{
-    size_t length = strlen (word);
-    size_t start  = 0;
-
-    while ((start < length) && !isalnum ((unsigned char)(word [start])))
-    {
-        ++start;
-    }
-
-    size_t end = length;
-
-    while ((end > start) && !isalnum ((unsigned char)(word [end - 1])))
-    {
-        --end;
-    }
-
-    size_t trimmed_length = end - start;
-
-    for (size_t index = 0; index < trimmed_length; ++index)
-    {
-        word [index]
-            = (char)(tolower ((unsigned char)(word [start + index])));
-    }
-    word [trimmed_length] = '\0';
-
-    return trimmed_length;
-}
-
-//
 // compare_counts_descending(const void*,const void*)
 //
 
@@ -124,28 +87,6 @@ compare_counts_descending (const void* left,
     }
 
     return strcmp (left_entry->word, right_entry->word);
-}
-
-//
-// print_usage(const char*)
-//
-
-static
-void
-print_usage (const char* program_name)
-{
-    fprintf (stderr,
-             "usage: %s [--resize-threshold PERCENT] [top_n]\n"
-             "\n"
-             "Reads whitespace-separated words from stdin, counts"
-             " occurrences\n"
-             "(case-insensitive, punctuation-trimmed) in an RHTable,"
-             " and prints\n"
-             "the top_n most frequent (default: 10).\n"
-             "--resize-threshold PERCENT sets the table's resize"
-             " threshold (1-100,\n"
-             "default 80) -- see rh_set_resize_threshold().\n",
-             program_name);
 }
 
 //
@@ -305,4 +246,64 @@ main (int    argc,
     rh_destroy (&table);
 
     return 0;
+}
+
+
+//
+// normalize_word(char*)
+//
+
+// So "Hello," and "hello" count as the same word; returns 0 if
+// nothing alphanumeric remains.
+static
+size_t
+normalize_word (char* word)
+{
+    size_t length = strlen (word);
+    size_t start  = 0;
+
+    while ((start < length) && !isalnum ((unsigned char)(word [start])))
+    {
+        ++start;
+    }
+
+    size_t end = length;
+
+    while ((end > start) && !isalnum ((unsigned char)(word [end - 1])))
+    {
+        --end;
+    }
+
+    size_t trimmed_length = end - start;
+
+    for (size_t index = 0; index < trimmed_length; ++index)
+    {
+        word [index]
+            = (char)(tolower ((unsigned char)(word [start + index])));
+    }
+    word [trimmed_length] = '\0';
+
+    return trimmed_length;
+}
+
+//
+// print_usage(const char*)
+//
+
+static
+void
+print_usage (const char* program_name)
+{
+    fprintf (stderr,
+             "usage: %s [--resize-threshold PERCENT] [top_n]\n"
+             "\n"
+             "Reads whitespace-separated words from stdin, counts"
+             " occurrences\n"
+             "(case-insensitive, punctuation-trimmed) in an RHTable,"
+             " and prints\n"
+             "the top_n most frequent (default: 10).\n"
+             "--resize-threshold PERCENT sets the table's resize"
+             " threshold (1-100,\n"
+             "default 80) -- see rh_set_resize_threshold().\n",
+             program_name);
 }
