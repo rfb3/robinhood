@@ -107,11 +107,19 @@ make            # build librobinhood (static + shared) and the examples
 make test       # build and run the unit test suite
 make sanitize   # rebuild and run under AddressSanitizer + UBSan
 make coverage   # rebuild and run under gcov, report line/branch coverage
+make format     # reformat .c/.h files per .clang-format
+make autogen    # regenerate configure/Makefile.in/etc. after editing
+                # configure.ac/Makefile.am
 make install    # install the library, header, and pkg-config file to
                 # $PREFIX (or $DESTDIR$PREFIX, for staged installs)
 make dist       # produce a robinhood-<version>.tar.gz source tarball
 make clean      # remove build artifacts
 ```
+
+Run `make format` periodically as you edit -- see `.clang-format`'s
+own header comment for what it doesn't cover (it won't replicate
+every hand-tuned convention, so review the diff rather than trusting
+it blindly on existing, hand-formatted code).
 
 For many, once you clone the repo or download and unpack a `.zip` or
 `.tar.gz`, it will be the fairly standard:
