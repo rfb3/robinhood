@@ -45,6 +45,7 @@
 #include "robinhood.h"
 
 #include <ftw.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
