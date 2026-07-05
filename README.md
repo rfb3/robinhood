@@ -13,21 +13,6 @@ open-addressing insertion and backward-shift deletion.
   on a BSD extension (`<err.h>`), and one example (`netifs`) on another
   (`getifaddrs`) -- both checked by `./configure`.
 
-## Table of contents
-
-- [Building](#building)
-- [Project layout](#project-layout)
-- [Using the library](#using-the-library)
-  - [Warnings](#warnings)
-  - [Resize threshold](#resize-threshold)
-  - [Thread safety](#thread-safety)
-- [Documentation](#documentation)
-- [Code coverage](#code-coverage)
-- [Example programs](#example-programs)
-- [Project status](#project-status)
-- [Further reading](#further-reading)
-- [License](#license)
-
 ## Building
 
 ```sh
@@ -215,11 +200,15 @@ format. `make docs` (requires `doxygen` -- `brew install doxygen` /
 nothing else here depends on it, and it's not part of `make`/`make
 test`.
 
+
+
 The same generated docs are published at
-[rfb3.github.io/robinhood](https://rfb3.github.io/robinhood/) --
-rebuilt and redeployed automatically on every push to `main` (see
+[rfb3.github.io/robinhood][gh-pages] -- rebuilt and redeployed
+automatically on every push to `main` (see
 `.github/workflows/docs.yml`), so there's no generated HTML checked
 into this repo itself.
+
+[gh-pages]: https://rfb3.github.io/robinhood/robinhood_8h.html#func-members
 
 ## Code coverage
 
