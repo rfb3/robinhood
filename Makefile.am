@@ -84,6 +84,21 @@ format:
 	clang-format -i $(srcdir)/include/*.h $(srcdir)/src/*.c \
 	                 $(srcdir)/tests/*.c $(srcdir)/examples/*.c
 
+# Optional -- not part of `all`/`check`. Regenerates configure/
+# Makefile.in/aclocal.m4/build-aux/* from configure.ac/Makefile.am via
+# autoreconf. configure.ac's AM_MAINTAINER_MODE([disable]) means plain
+# `make` won't do this on its own (deliberate -- see README.md's
+# Building section for why), so this is the one place that incantation
+# needs to be remembered. The PATH prefix is a no-op everywhere except
+# Homebrew macOS, where GNU libtool/libtoolize aren't on PATH by
+# default (to avoid shadowing the incompatible BSD /usr/bin/libtool)
+# -- without it, autoreconf either fails outright or silently uses the
+# wrong libtool.
+autogen:
+	PATH="/opt/homebrew/opt/libtool/libexec/gnubin:$$PATH" autoreconf --install
+	@echo "Regenerated configure/Makefile.in/aclocal.m4/build-aux --" \
+	      "review the diff before committing."
+
 clean-local:
 	$(RM) -r docs
 	$(RM) *.gcda *.gcno *.gcov coverage.info
@@ -131,7 +146,7 @@ coverage-html: coverage
 	genhtml coverage.info --output-directory coverage-html
 	@echo "Generated coverage-html/index.html"
 
-.PHONY: test sanitize docs format coverage coverage-html
+.PHONY: test sanitize docs format autogen coverage coverage-html
 
 tarball:
 	( cd .. ; tar cf - robinhood | gzip > robinhood-`date +'%Y%m%d-%H%M-%Z'`.tar.gz )
