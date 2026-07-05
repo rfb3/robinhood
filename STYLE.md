@@ -26,14 +26,14 @@ fight standard tooling.
   trailing `\`).
 - Always spaces, never tabs — except Makefile recipe lines, which must
   start with a literal tab (required Make syntax, not a style choice).
-- Every `if`/`for`/`while`/etc. gets curly braces, even for a
-  single-statement body. No brace-less singleton blocks.
+- Braces: Allman style throughout — an opening `{` always goes on its
+  own line, never "hanging" at the end of the previous line, for blocks
+  and function bodies alike; and every `if`/`for`/`while`/etc. gets
+  braces, even for a single-statement body — no brace-less singleton
+  blocks.
 - Prefer `while (true)` over `for (;;)` for an intentionally infinite
   loop — `true` says what's happening, where `for (;;)`'s three empty
   clauses only say what *isn't*.
-- Opening curly braces always go on their own line, never a "hanging"
-  brace at the end of the previous line — for blocks and function bodies
-  alike.
 - No space before `(` for function/macro calls, declarations, or
   definitions — `rh_get(table, key, NULL)`, `bar()`, `RHE_KEY(entry)`,
   `#define RHE_KEY(ENTRY) ...`. This is the one place the standard
@@ -73,18 +73,16 @@ fight standard tooling.
 
 ## Function declarations and definitions
 
-Return type goes on its own line above the function name, and — for
-`static` functions — so does the linkage keyword, above that:
+Linkage (`static`/`extern`, when present) and the return type share one
+line; the function name always starts the next line, along with its
+parameter list — this is `clang-format`'s `BreakAfterReturnType: All`,
+not a hand-maintained convention, so `make format` already enforces it:
 
 ```c
-extern
-void*
-rh_get(RHTable     table,
-       const char* key,
-       void*       not_found_result);
+extern void*
+rh_get(RHTable table, const char* key, void* not_found_result);
 
-static
-size_t
+static size_t
 next_power_of_two(size_t n);
 ```
 
@@ -92,12 +90,22 @@ This applies to function declarations/definitions only, not variables —
 a `static`/`extern` variable keeps its linkage keyword on the same line
 as its type: `static int errors = 0;`, `extern char** environ;`.
 
-When there's more than one parameter, put one per line — in both
-prototypes and definitions, not just prototypes — with types padded so
-every parameter name lines up in the same column (pad each type to the
-width of the widest type in the list, plus one space). A single-parameter
-function stays on one line, e.g. `rh_capacity(RHTable table);` — the
-one-per-line rule only kicks in once there's something to align.
+Parameters stay on the same line as the function name as long as the
+whole signature fits within the 78-column limit — this covers most
+functions here, including two-and-three-parameter ones like
+`rh_clear(RHTable table, const char* key)`. Once a signature doesn't
+fit, every parameter moves to its own line — in both prototypes and
+definitions, not just prototypes — with types padded so every parameter
+name lines up in the same column (pad each type to the width of the
+widest type in the list, plus one space):
+
+```c
+static bool
+rh_find_index(RHTable     table,
+              const char* key,
+              uint64_t    hash,
+              size_t*     out_index);
+```
 
 This applies to declarations/definitions only, not call sites —
 `rh_set(table, "me", value);` stays on one line regardless of argument
@@ -146,8 +154,8 @@ postfix semantics — using the old value before it changes — are actually
 needed. For example:
 
 ```c
-*(dest++) = '/';                      // examples/scan.c: walk()
-hash ^= (unsigned char)(*(text++));   // src/robinhood.c: string_hash()
+*(dest++) = '/';                        // examples/scan.c: walk()
+hash ^= ((unsigned char)(*(text++)));   // src/robinhood.c: string_hash()
 ```
 
 In both cases, `++dest`/`++text` would advance the pointer *before* the
@@ -174,6 +182,7 @@ blocks, in this order, each sorted alphabetically within itself:
 #include <fcntl.h>
 #include <getopt.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -283,8 +292,7 @@ and `@brief`/`@param`/`@return` tags:
 /// @param name  What this parameter means.
 /// @return      What gets returned, and under what conditions.
 ///
-extern
-int
+extern int
 example_function(int name);
 ```
 
