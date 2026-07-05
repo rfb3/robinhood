@@ -103,12 +103,12 @@ main(int argc, char** argv)
 
     size_t distinct_words = rh_count(table);
 
-    printf("%zu distinct word%s, %zu total",
-           distinct_words, (distinct_words == 1) ? "" : "s", total_words);
+    printf("%zu distinct word%s, %zu total", distinct_words,
+           (distinct_words == 1) ? "" : "s", total_words);
     if (store_failed > 0)
     {
-        printf(" (%zu word%s not counted -- allocation failed)",
-               store_failed, (store_failed == 1) ? "" : "s");
+        printf(" (%zu word%s not counted -- allocation failed)", store_failed,
+               (store_failed == 1) ? "" : "s");
     }
     printf("\n");
 

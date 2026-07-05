@@ -82,10 +82,9 @@ main(int argc, char** argv)
         return 2;
     }
 
-    char*    end   = NULL;
-    long int n     = strtol(argv [1], &end, 10);
-    bool     valid = (end != argv [1]) && (*end == '\0') && (n >= 0) &&
-                  (n <= 90);
+    char*    end = NULL;
+    long int n   = strtol(argv [1], &end, 10);
+    bool valid = (end != argv [1]) && (*end == '\0') && (n >= 0) && (n <= 90);
 
     if (!valid)
     {

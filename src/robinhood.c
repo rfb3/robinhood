@@ -567,4 +567,3 @@ string_hash(const char* text)
     }
     return hash;
 }
-
