@@ -93,9 +93,6 @@ typedef struct RHIterator_struct* RHIterator;
 // File-local prototypes
 // ===========================================================================
 
-static char*
-dup_string(const char* text);
-
 static size_t
 next_power_of_two(size_t n);
 
@@ -116,20 +113,6 @@ rhi_advance_to_used(RHIterator iterator);
 
 static uint64_t
 string_hash(const char* text);
-
-static char*
-dup_string(const char* text)
-{
-    size_t length = strlen(text) + 1;
-    char*  copy   = (char*)(malloc(length));
-
-    if (copy != ((void*)NULL))
-    {
-        memcpy(copy, text, length);
-    }
-
-    return copy;
-}
 
 static size_t
 next_power_of_two(size_t n)
@@ -481,7 +464,7 @@ rh_set(RHTable table, const char* key, void* value)
                       // path is already excluded; nothing new to cover.
     }
 
-    char* key_copy = dup_string(key);
+    char* key_copy = strdup(key);
     if (key_copy == NULL)
     {
         // Genuine allocation failure -- not realistically forced without
