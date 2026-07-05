@@ -1,0 +1,50 @@
+# Draft clang-tidy config for robinhood. Experimental -- not yet wired
+# into a `make` target. Deliberately scoped to a handful of checks that
+# map onto rules STYLE.md already documents by hand, rather than
+# clang-tidy's much broader (and more C++-opinionated) default set.
+#
+# misc-include-cleaner was tried and dropped: on this platform, most
+# of its findings were false positives for symbols whose canonical
+# header (<fcntl.h>, <time.h>, <dirent.h>, <limits.h>) was already
+# directly included -- its symbol-to-header database doesn't appear
+# to have complete coverage for these POSIX/BSD declarations here. The
+# two genuine findings it did produce (dev_t/ino_t) are the same,
+# already-deliberate sys/stat.h-guarantee exception STYLE.md's
+# Includes section documents by hand. Not worth the noise.
+Checks: >
+  -*,
+  readability-identifier-naming,
+  readability-braces-around-statements,
+  readability-isolate-declaration
+
+CheckOptions:
+  # snake_case functions/variables (STYLE.md "Naming"); the RHWord
+  # family (RHTable, RHIterator, RHEntry, RHProbeStats, ...) and
+  # UPPER_SNAKE_CASE macros/enum constants are carved out below.
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+
+  - key: readability-identifier-naming.StructCase
+    value: lower_case
+  - key: readability-identifier-naming.StructIgnoredRegexp
+    value: '^RH[A-Za-z]*(_struct)?$'
+  - key: readability-identifier-naming.TypedefCase
+    value: lower_case
+  - key: readability-identifier-naming.TypedefIgnoredRegexp
+    value: '^RH[A-Za-z]*$'
+  - key: readability-identifier-naming.EnumCase
+    value: lower_case
+
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  # _XOPEN_SOURCE (examples/scan.c, tests/tester.c) is a POSIX feature-
+  # test macro with a mandated exact spelling, not this project's own
+  # name to rename.
+  - key: readability-identifier-naming.MacroDefinitionIgnoredRegexp
+    value: '^_XOPEN_SOURCE$'
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
