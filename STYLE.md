@@ -187,10 +187,24 @@ blocks, in this order, each sorted alphabetically within itself:
 first two blocks; a file with only one local header and no others
 still gets its own block for it. Only include a header if the file
 actually uses something it declares — don't include one "just in
-case," and don't rely on one header transitively pulling in another
-you also reference directly (e.g. `<sys/stat.h>` already guarantees
-`dev_t`/`ino_t` per POSIX, so a file that only needs those two types
-and already includes `<sys/stat.h>` doesn't also need `<sys/types.h>`).
+case," and drop one the moment nothing in the file needs it anymore
+(e.g. a leftover `<assert.h>` after the last `assert()` call is
+removed).
+
+Relying on one *standard* header to transitively guarantee another
+*standard* header's symbols is fine, since that relationship is a
+documented, permanent part of the C/POSIX standard, not an
+implementation detail: `<sys/stat.h>` already guarantees `dev_t`/
+`ino_t` per POSIX, so a file that only needs those two types and
+already includes `<sys/stat.h>` doesn't also need `<sys/types.h>`.
+But never rely on one of *this project's own* headers (`"robinhood.h"`)
+to transitively supply a standard-library symbol — that's just
+`robinhood.h`'s own implementation detail today, not a contract, and
+could change out from under every file quietly depending on it. If a
+`.c` file directly uses `bool`/`true`/`false`, it includes
+`<stdbool.h>` itself, even though `"robinhood.h"` already does —
+don't lean on the local header's own includes for anything beyond
+this project's own declared types (`RHTable`, `RHIterator`, etc.).
 
 ## File structure
 
