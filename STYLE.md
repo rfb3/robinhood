@@ -178,8 +178,11 @@ order, each sorted alphabetically within itself:
    like `<sys/...>` or `<netinet/...>` — grouped one prefix per block,
    not lumped into a single trailing block together: each distinct
    prefix gets its own block, separated from the others (and from the
-   plain block above) by a blank line, with the blocks themselves in
-   alphabetical order by prefix.
+   plain block above) by a blank line. The blocks themselves are
+   sorted too, not just the headers within each one — alphabetically
+   by prefix, `<net/...>` before `<sys/...>` — the same
+   alphabetical-ordering default this guide applies to everything else
+   (see "Formatting" above).
 
 ```c
 #include "robinhood.h"
@@ -203,8 +206,9 @@ order, each sorted alphabetically within itself:
 prefixed headers at all just has the first two blocks; a file with
 only one local header and no others still gets its own block for it.
 `examples/netifs.c` needs four prefixed headers across four different
-prefixes, so it gets four one-line blocks, each its own prefix, after
-the plain block:
+prefixes, so it gets four one-line blocks after the plain block, one
+per prefix, the blocks themselves alphabetical too (`arpa` < `net` <
+`netinet` < `sys`):
 
 ```c
 #include <arpa/inet.h>
