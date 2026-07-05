@@ -2,7 +2,12 @@
 
 Coding conventions for this repository. These apply to all `.c`/`.h`
 files (and, where noted, `Makefile.am`) — follow them for new code and
-when touching existing code nearby.
+when touching existing code nearby. The overall aim is idiomatic
+Allman-style C: brace-on-its-own-line is the one deliberately named
+style choice, and the rest of this guide tries to stay close to what
+most Allman-style C codebases already do (and what `clang-format` can
+already enforce), rather than introducing bespoke conventions that
+fight standard tooling.
 
 ## Table of contents
 
@@ -29,21 +34,19 @@ when touching existing code nearby.
 - Opening curly braces always go on their own line, never a "hanging"
   brace at the end of the previous line — for blocks and function bodies
   alike.
-- Space before `(` and `[` — for function calls/declarations and array
-  indexing alike — unless the character immediately before it is itself
-  `)`, `(`, `]`, or `[`. For example:
-  ```c
-  rh_get (table, key, NULL)
-  entries [pos]
-  bar ()
-  (char*)(malloc (length))   // no space: '(' is preceded by ')'
-  RH_ENTRIES (table)[index]  // no space before '[': preceded by ')'
-  ```
-  Exception: `#define NAME(args)` function-like macro definitions never
-  get a space before `(` — that's mandatory C preprocessor syntax (a
-  space there makes it an object-like macro instead), not a style choice.
-  This applies only to the `#define` line itself, not to invocations of
-  the macro elsewhere (`RHE_KEY (entry)` still gets the space).
+- No space before `(` for function/macro calls, declarations, or
+  definitions — `rh_get(table, key, NULL)`, `bar()`, `RHE_KEY(entry)`,
+  `#define RHE_KEY(ENTRY) ...`. This is the one place the standard
+  Allman convention and the mandatory C-preprocessor rule for
+  function-like macros (`#define NAME(args)` can never have a space,
+  or it becomes an object-like macro) already agree, so there's no
+  exception to carve out here anymore.
+- Space before `(` for the control-flow keywords `if`, `for`, `while`,
+  `switch`, and `return` (when followed by a parenthesized
+  expression) — `if (x)`, `while (true)`, `return (a) ? b : c;`.
+- Space before `[` for array indexing — `entries [pos]`, not
+  `entries[pos]` — this is `clang-format`'s `SpaceBeforeSquareBrackets`
+  option, kept because it reads well and doesn't fight the tool.
 - When ordering lists of things, if there is no need for any particular
   ordering, put things in alphabetical/lexicographic order. Everything from
   dependencies in a makefile to ordering of function definitions in source
@@ -81,13 +84,13 @@ Return type goes on its own line above the function name, and — for
 ```c
 extern
 void*
-rh_get (RHTable     table,
-        const char* key,
-        void*       not_found_result);
+rh_get(RHTable     table,
+       const char* key,
+       void*       not_found_result);
 
 static
 size_t
-next_power_of_two (size_t n);
+next_power_of_two(size_t n);
 ```
 
 This applies to function declarations/definitions only, not variables —
@@ -98,11 +101,11 @@ When there's more than one parameter, put one per line — in both
 prototypes and definitions, not just prototypes — with types padded so
 every parameter name lines up in the same column (pad each type to the
 width of the widest type in the list, plus one space). A single-parameter
-function stays on one line, e.g. `rh_capacity (RHTable table);` — the
+function stays on one line, e.g. `rh_capacity(RHTable table);` — the
 one-per-line rule only kicks in once there's something to align.
 
 This applies to declarations/definitions only, not call sites —
-`rh_set (table, "me", value);` stays on one line regardless of argument
+`rh_set(table, "me", value);` stays on one line regardless of argument
 count.
 
 The same column-alignment applies beyond function parameters, to any
@@ -213,55 +216,62 @@ this project's own declared types (`RHTable`, `RHIterator`, etc.).
 
 Every `.c`/`.h` file starts with a one-line file tagline comment,
 immediately followed by an `SPDX-License-Identifier: Unlicense` line
-(same comment block, before the form feed — this doesn't add a page of
-its own, so it doesn't affect the ToC below), then a Table of Contents
-comment block listing every section in file order, then the sections
-themselves — each introduced by a `//` banner:
+(same comment block), then the rest of the file.
+
+(This project used to delineate every section — headers, type
+definitions, and every single function — with a `//`-bordered banner,
+plus a form-feed character between them and a hand-maintained Table of
+Contents comment listing them all. All of that is dropped now: none
+of it is something a normal toolchain understands or preserves, it
+didn't survive contact with `clang-format`, and without the page
+mechanism it existed to serve, a banner that just echoes the function
+name or says "Type definitions" right above a `struct` is a pure
+"what" comment doing no real work -- the code already says that.)
+
+A banner is still warranted for a genuinely multi-item grouping whose
+existence isn't obvious from the code alone -- a handful of related
+functions under one topic (`include/robinhood.h`'s "Table operations",
+"Iterator operations", "Global configuration"), or a whole block of
+forward declarations ("File-local prototypes", in any `.c` file with
+one). There is exactly one banner style, used every time one of these
+is warranted, never the plain three-line `//`/text/`//` form:
 
 ```c
-//
-// Section Name
-//
+// ===========================================================================
+// Section name
+// ===========================================================================
 ```
 
-Section boundaries are marked by a form-feed character (`^L`, `\f`) on
-its own line, in place of the usual blank line separator. This is used
-by an external tool to regenerate the Table of Contents from the first
-non-blank line of each page, so keep section banners and the ToC listing
-in sync when adding, renaming, or reordering sections.
-
-In `.c` files, a function's banner is its name immediately followed by
-its parameter types in parentheses, comma-separated, no spaces, no
-return type, no parameter names -- e.g. `rh_clear(RHTable,const
-char*)`, not `rh_clear` or `rh_clear (RHTable table, const char* key)`.
-This is deliberately more compressed than the function's own
-declaration; it exists to make the ToC/banner scan quickly, not to
-restate the signature exactly as written. If a banner would exceed the
-78-column limit, truncate it at 78 columns outright (even mid-word) —
-don't wrap it or shorten individual type names to make it fit.
+Reserve it for real, multi-item structure like the examples above --
+not for a single function, a single type, or anything else the code
+immediately beneath it already says on its own (that's what got
+removed: `Headers, etc.`, `Type definitions`, and a compressed-name
+banner on every function). The file tagline/SPDX comment at the very
+top of the file is the one exception, and stays in the plain form --
+it's file identification, not a code section.
 
 Every `.c` file with more than one function gets a "File-local
-prototypes" page, right after any type-definition pages and before the
-first function-definition page, forward-declaring every function
-defined later in the file — written out in full (return type, `static`
-where applicable, real parameter names, one per line once there's more
-than one parameter — not the compressed banner form), alphabetically
-by name, including `main` even though it's never `static` and normally
-wouldn't need forward declaring. Macros (e.g. `CHECK`) and struct-only
-sections don't get prototype entries -- only actual functions do.
+prototypes" section, right after any type definitions and before the
+first function definition, forward-declaring every function defined
+later in the file — written out in full (return type, `static` where
+applicable, real parameter names, one per line once there's more than
+one parameter), alphabetically by name, including `main` even though
+it's never `static` and normally wouldn't need forward declaring.
+Macros (e.g. `CHECK`) and struct-only definitions don't get prototype
+entries -- only actual functions do.
 
-A type-definition page holding only a plain data type (no reference to
-any function) always goes before "File-local prototypes", per the above.
-But `tests/tester.c`'s `struct test` (the `{ name, function }` pair type)
-and its `tests[]` table are deliberately split across two different
-pages precisely because of this ordering rule: `struct test` itself has
-no function reference, so it lives in the early "Type definitions" page
-like any other type. The `tests[]` table, though, is initialized with
-pointers to every `test_*` function by name — it can't move any earlier
-than "File-local prototypes" without losing the forward declarations
-that make those names valid there, so it stays as a later page (see its
-own `// Test table //` banner) positioned wherever in the function
-sequence made sense, not up front with the type itself.
+A type definition holding only a plain data type (no reference to any
+function) always goes before "File-local prototypes", per the above.
+But `tests/tester.c`'s `struct test` (the `{ name, function }` pair
+type) and its `tests[]` table are deliberately split across two
+different spots in the file precisely because of this ordering rule:
+`struct test` itself has no function reference, so it sits early,
+alongside the file's other type definitions. The `tests[]` table,
+though, is initialized with pointers to every `test_*` function by
+name -- it can't move any earlier than "File-local prototypes" without
+losing the forward declarations that make those names valid there, so
+it stays lower in the file, wherever in the function sequence made
+sense, not up front with the type itself.
 
 ## Documentation comments
 
@@ -281,14 +291,11 @@ and `@brief`/`@param`/`@return` tags:
 ///
 extern
 int
-example_function (int name);
+example_function(int name);
 ```
 
 Wrap comment text to the same 78-column limit as code. `@param`
 descriptions align like the function's own parameter list would (see
 "Function declarations and definitions" above) when there's more than
-one. Never place a doc comment as the first non-blank line of a page —
-that line feeds the ToC (see "File structure" above), and a `///`
-line there hasn't been confirmed to interact well with the external
-ToC tool. Implementation (`.c`) files don't repeat these comments —
+one. Implementation (`.c`) files don't repeat these comments —
 only the public header does.
