@@ -9,10 +9,13 @@
 /// @brief A hash table with Robin Hood open-addressing insertion and
 ///        backward-shift deletion (no tombstones).
 ///
-/// Not thread-safe: concurrent operations on the *same* RHTable or
-/// RHIterator (including one of each derived from the other) require
-/// external synchronization by the caller. Different tables may be
-/// used concurrently from different threads with no extra care.
+/// Not thread-safe internally, by design: concurrent operations on
+/// the *same* RHTable or RHIterator (including one of each derived
+/// from the other) are entirely possible, but not built in -- that's
+/// on the caller to synchronize (a lock or equivalent around those
+/// calls). Different tables may be used concurrently from different
+/// threads with no extra care at all; see README.md's "Thread safety"
+/// section for why a per-table lock isn't provided.
 ///
 
 #ifndef ROBIN_HOOD_HEADER_INCLUDED
