@@ -13,6 +13,91 @@ open-addressing insertion and backward-shift deletion.
   on a BSD extension (`<err.h>`), and one example (`netifs`) on another
   (`getifaddrs`) -- both checked by `./configure`.
 
+See also: [Full API documentation][gh-pages]
+
+## Using the library
+
+```c
+#include "robinhood.h"
+
+RHTable table = rh_create (16);   // initial capacity, rounded up to a power of two
+
+rh_set (table, "hello", (void*)"world");
+
+if (rh_has (table, "hello"))
+{
+    const char* value = (const char*)(rh_get (table, "hello", NULL));
+    printf ("%s\n", value);   // "world"
+}
+
+rh_clear (table, "hello");        // remove one key
+rh_destroy (&table);              // frees the table and its key copies
+                                   // (caller-supplied values are not freed)
+```
+
+Iteration:
+
+```c
+for (RHIterator it = rhi_create (table); !rhi_is_finished (it); rhi_advance (it))
+{
+    const char* key = rhi_key (it);
+    // ...
+}
+```
+
+The full API is documented in `include/robinhood.h`, in
+[Doxygen](https://www.doxygen.nl/)-style comments -- see
+<a href="#documentation">"Documentation"</a> below to generate
+browsable HTML from them.
+
+## Example programs
+
+Six small programs exercise the library in different ways -- `scan`,
+`tester`, and `memo` are deliberately built on different underpinnings
+(hand-rolled `fstatat`/`openat` recursion vs. `nftw` vs. no filesystem
+traversal at all) rather than sharing one code path, so each keeps
+demonstrating the library under genuinely different real-world usage
+patterns instead of one superseding the others:
+
+- `tester` (`./tester`) -- the unit test suite (`make test`).
+- `scan <directory>` (`./scan`) -- walks a directory tree (hand-rolled
+  `fstatat`/`openat`-based recursion, not `nftw`/`fts`) and maps each
+  pathname to a copy of its `stat(2)` info. Options: `--cross-mounts`,
+  `--follow-symlinks`, `--exclude PATH` (repeatable), `--probe-stats`
+  (prints Robin Hood probe-depth statistics -- mean/max/stddev and a
+  histogram -- after the walk; off by default, though measured
+  overhead is negligible, see `PERFORMANCE.md`), `--resize-threshold
+  PERCENT` (sets the table's resize threshold via
+  `rh_set_resize_threshold()` -- 1-100, default 80; see
+  `PERFORMANCE.md` for whether changing it is actually worth it). See
+  `PERFORMANCE.md` for real-world timings, including scans of an
+  entire home directory and root filesystem.
+- `memo <n>` (`./memo`) -- computes `fib(n)` via recursion memoized in the
+  table, demonstrating it as a cache: `rh_has`/`rh_get` for lookups,
+  `rh_set` to populate a miss, and `rh_clear` to invalidate one entry
+  and show the resulting partial recompute.
+- `wordfreq [top_n]` (`./wordfreq`) -- reads words from stdin, case-
+  folds and trims punctuation, and counts occurrences via a genuine
+  read-modify-write (`rh_get` the current count, increment, `rh_set` it
+  back) -- the one usage pattern none of the other examples exercise.
+  Prints the `top_n` most frequent words (default: 10).
+- `netifs` (`./netifs`) -- enumerates this machine's network
+  interfaces via `getifaddrs`/`freeifaddrs`, mapping each (interface,
+  address family) pair to its address and flags. IPv4/IPv6 only --
+  link-layer/MAC-address entries are skipped, since their `sockaddr`
+  representation isn't portable across platforms. A single interface
+  can carry more than one address of the same family (e.g. multiple
+  IPv6 addresses), so same-key collisions are disambiguated rather
+  than silently overwritten.
+- `environ` (`./environ`) -- walks the process's environment into
+  the table and prints it sorted by name. The simplest example: no
+  syscalls beyond what the process already holds in memory, and no
+  heap allocation for values at all -- each value is a borrowed
+  pointer into the existing environment strings, not a copy.
+
+`memo`, `wordfreq`, `netifs`, and `environ` also accept the same
+`--resize-threshold PERCENT` option as `scan`.
+
 ## Building
 
 ```sh
@@ -26,6 +111,12 @@ make install    # install the library, header, and pkg-config file to
                 # $PREFIX (or $DESTDIR$PREFIX, for staged installs)
 make dist       # produce a robinhood-<version>.tar.gz source tarball
 make clean      # remove build artifacts
+```
+
+For many, once you clone the repo or download and unpack a `.zip` or
+`.tar.gz`, it will be the fairly standard:
+```
+./configure && make && sudo make install
 ```
 
 Once installed, downstream projects can use `pkg-config --cflags --libs
@@ -100,42 +191,7 @@ them (see "Building" above for why). Build outputs (the library and
 the example/test binaries) land directly at the repo root, next to
 `Makefile.am` -- there's no separate `bin/`/`lib/` output directory.
 
-## Using the library
-
-```c
-#include "robinhood.h"
-
-RHTable table = rh_create (16);   // initial capacity, rounded up to a power of two
-
-rh_set (table, "hello", (void*)"world");
-
-if (rh_has (table, "hello"))
-{
-    const char* value = (const char*)(rh_get (table, "hello", NULL));
-    printf ("%s\n", value);   // "world"
-}
-
-rh_clear (table, "hello");        // remove one key
-rh_destroy (&table);              // frees the table and its key copies
-                                   // (caller-supplied values are not freed)
-```
-
-Iteration:
-
-```c
-for (RHIterator it = rhi_create (table); !rhi_is_finished (it); rhi_advance (it))
-{
-    const char* key = rhi_key (it);
-    // ...
-}
-```
-
-The full API is documented in `include/robinhood.h`, in
-[Doxygen](https://www.doxygen.nl/)-style comments -- see
-<a href="#documentation">"Documentation"</a> below to generate
-browsable HTML from them.
-
-### Warnings
+## Warnings
 
 By default, the library prints a message to stderr if an internal
 allocation fails (inside `rh_create`/`rh_set`/`rh_maybe_grow`/
@@ -158,7 +214,7 @@ This is a single, process-wide setting rather than a per-table one --
 `rh_create()` can itself fail to allocate the table, before there's
 any `RHTable` to attach a per-instance setting to.
 
-### Resize threshold
+## Resize threshold
 
 The table doubles capacity whenever the next insertion would push its
 load factor past a threshold, 80% by default. Change it per-table with
@@ -179,7 +235,7 @@ reaching for this: within the 70-90% range, lower is consistently a
 little faster and higher is consistently a little denser, but there's
 no hidden value in between that beats the 80% default on both counts.
 
-### Thread safety
+## Thread safety
 
 Not thread-safe: concurrent operations on the *same* table or iterator
 need a lock (or other synchronization) you provide yourself. Different
@@ -207,7 +263,7 @@ automatically on every push to `main` (see
 `.github/workflows/docs.yml`), so there's no generated HTML checked
 into this repo itself.
 
-[gh-pages]: https://rfb3.github.io/robinhood/
+[gh-pages]: https://rfb3.github.io/robinhood/robinhood_8h.html
 
 ## Code coverage
 
@@ -227,54 +283,6 @@ redeployed alongside the Doxygen docs on every push to `main` (see
 `.github/workflows/docs.yml`).
 
 [gh-pages-coverage]: https://rfb3.github.io/robinhood/coverage/
-
-## Example programs
-
-Six small programs exercise the library in different ways -- `scan`,
-`tester`, and `memo` are deliberately built on different underpinnings
-(hand-rolled `fstatat`/`openat` recursion vs. `nftw` vs. no filesystem
-traversal at all) rather than sharing one code path, so each keeps
-demonstrating the library under genuinely different real-world usage
-patterns instead of one superseding the others:
-
-- `tester` (`./tester`) -- the unit test suite (`make test`).
-- `scan <directory>` (`./scan`) -- walks a directory tree (hand-rolled
-  `fstatat`/`openat`-based recursion, not `nftw`/`fts`) and maps each
-  pathname to a copy of its `stat(2)` info. Options: `--cross-mounts`,
-  `--follow-symlinks`, `--exclude PATH` (repeatable), `--probe-stats`
-  (prints Robin Hood probe-depth statistics -- mean/max/stddev and a
-  histogram -- after the walk; off by default, though measured
-  overhead is negligible, see `PERFORMANCE.md`), `--resize-threshold
-  PERCENT` (sets the table's resize threshold via
-  `rh_set_resize_threshold()` -- 1-100, default 80; see
-  `PERFORMANCE.md` for whether changing it is actually worth it). See
-  `PERFORMANCE.md` for real-world timings, including scans of an
-  entire home directory and root filesystem.
-- `memo <n>` (`./memo`) -- computes `fib(n)` via recursion memoized in the
-  table, demonstrating it as a cache: `rh_has`/`rh_get` for lookups,
-  `rh_set` to populate a miss, and `rh_clear` to invalidate one entry
-  and show the resulting partial recompute.
-- `wordfreq [top_n]` (`./wordfreq`) -- reads words from stdin, case-
-  folds and trims punctuation, and counts occurrences via a genuine
-  read-modify-write (`rh_get` the current count, increment, `rh_set` it
-  back) -- the one usage pattern none of the other examples exercise.
-  Prints the `top_n` most frequent words (default: 10).
-- `netifs` (`./netifs`) -- enumerates this machine's network
-  interfaces via `getifaddrs`/`freeifaddrs`, mapping each (interface,
-  address family) pair to its address and flags. IPv4/IPv6 only --
-  link-layer/MAC-address entries are skipped, since their `sockaddr`
-  representation isn't portable across platforms. A single interface
-  can carry more than one address of the same family (e.g. multiple
-  IPv6 addresses), so same-key collisions are disambiguated rather
-  than silently overwritten.
-- `environ` (`./environ`) -- walks the process's environment into
-  the table and prints it sorted by name. The simplest example: no
-  syscalls beyond what the process already holds in memory, and no
-  heap allocation for values at all -- each value is a borrowed
-  pointer into the existing environment strings, not a copy.
-
-`memo`, `wordfreq`, `netifs`, and `environ` also accept the same
-`--resize-threshold PERCENT` option as `scan`.
 
 ## Project status
 
