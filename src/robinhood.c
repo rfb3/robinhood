@@ -6,8 +6,6 @@
 
 #include "robinhood.h"
 
-#include <err.h>
-#include <errno.h>
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
@@ -97,13 +95,6 @@ typedef struct RHIterator_struct* RHIterator;
 static char*
 dup_string(const char* text);
 
-static void
-failure(int         exit_value,
-        const char* file,
-        int         line,
-        const char* routine,
-        const char* argument);
-
 static size_t
 next_power_of_two(size_t n);
 
@@ -116,7 +107,7 @@ rh_find_index(RHTable     table,
 static void
 rh_insert_unique(RHTable table, char* key, uint64_t hash, void* value);
 
-static void
+static bool
 rh_maybe_grow(RHTable table);
 
 static void
@@ -125,53 +116,18 @@ rhi_advance_to_used(RHIterator iterator);
 static uint64_t
 string_hash(const char* text);
 
-static void
-warning(const char* file,
-        int         line,
-        const char* routine,
-        const char* argument);
-
 static char*
 dup_string(const char* text)
 {
     size_t length = strlen(text) + 1;
     char*  copy   = (char*)(malloc(length));
 
-    if (copy == ((void*)NULL))
-    {
-        warning(__FILE__, __LINE__, "malloc", text);
-    }
-    else
+    if (copy != ((void*)NULL))
     {
         memcpy(copy, text, length);
     }
 
     return copy;
-}
-
-#define FAILURE_BUFFER_SIZE (1024)
-
-// Unlike warning(), this uses a static buffer, making it non-reentrant, which
-// is not ideal, but given the context that the program has already
-// encountered a fatal situation, perhaps that's not so terrible.
-//
-static void
-failure(int         exit_value,
-        const char* file,
-        int         line,
-        const char* routine,
-        const char* argument)
-{
-    static char buffer [FAILURE_BUFFER_SIZE];
-    char*       call = (char*)routine; // Will not modify `routine`
-
-    fprintf(stderr, "%s:%d: ", file, line);
-    if (argument != ((const char*)NULL))
-    {
-        snprintf(buffer, FAILURE_BUFFER_SIZE, "%s(%s)", routine, argument);
-        call = buffer;
-    }
-    err(exit_value, "%s", call);
 }
 
 static size_t
@@ -273,7 +229,10 @@ rh_insert_unique(RHTable table, char* key, uint64_t hash, void* value)
 
 // Doubles capacity and rehashes whenever load factor would exceed the
 // table's own resize_threshold_percent -- see rh_resize_threshold().
-static void
+// Returns false (table left unchanged) if growth was needed but the
+// allocation failed -- callers fail the whole operation rather than
+// insert into a table that's silently over its configured threshold.
+static bool
 rh_maybe_grow(RHTable table)
 {
     size_t old_capacity = RH_CAPACITY(table);
@@ -281,7 +240,7 @@ rh_maybe_grow(RHTable table)
     if (((RH_COUNT(table) + 1) * 100) <=
         (old_capacity * RH_RESIZE_THRESHOLD_PERCENT(table)))
     {
-        return;
+        return true;
     }
 
     RHEntry* old_entries  = RH_ENTRIES(table);
@@ -290,8 +249,7 @@ rh_maybe_grow(RHTable table)
         (RHEntry*)(calloc(new_capacity, sizeof(struct RHEntry_struct)));
     if (new_entries == NULL)
     {
-        warning(__FILE__, __LINE__, "calloc", (char*)NULL);
-        return;
+        return false;
     }
 
     RH_SET_ENTRIES(table, new_entries);
@@ -308,6 +266,7 @@ rh_maybe_grow(RHTable table)
     }
 
     free(old_entries);
+    return true;
 }
 
 extern size_t
@@ -368,18 +327,13 @@ rh_create(size_t initial_capacity)
     }
 
     RHTable result = (RHTable)(malloc(sizeof(struct RHTable_struct)));
-    if (result == NULL_RHTABLE)
-    {
-        warning(__FILE__, __LINE__, "malloc", (char*)NULL);
-    }
-    else
+    if (result != NULL_RHTABLE)
     {
         RHEntry* entries =
             ((RHEntry*)(calloc(capacity, sizeof(struct RHEntry_struct))));
 
         if (entries == ((RHEntry*)NULL))
         {
-            warning(__FILE__, __LINE__, "calloc", (char*)NULL);
             free((void*)result);
             result = NULL_RHTABLE;
         }
@@ -511,19 +465,7 @@ rh_resize_threshold(RHTable table)
     return RH_RESIZE_THRESHOLD_PERCENT(table);
 }
 
-// Unsynchronized global state, like the rest of this file -- see
-// rh_set_warning_handler()'s doc comment for what that means in
-// practice. Starts pointing at this file's own default so programs
-// that never call rh_set_warning_handler() see no change in behavior.
-static RHWarningHandler warning_handler = rh_default_warning_handler;
-
-extern void
-rh_default_warning_handler(const char* message)
-{
-    warnx("%s", message);
-}
-
-extern void
+extern bool
 rh_set(RHTable table, const char* key, void* value)
 {
     uint64_t hash = string_hash(key);
@@ -532,16 +474,21 @@ rh_set(RHTable table, const char* key, void* value)
     if (rh_find_index(table, key, hash, &index))
     {
         RHE_SET_VALUE(RH_ENTRIES(table) [index], value);
-        return;
+        return true;
     }
-    rh_maybe_grow(table);
+
+    if (!rh_maybe_grow(table))
+    {
+        return false;
+    }
 
     char* key_copy = dup_string(key);
     if (key_copy == NULL)
     {
-        return;
+        return false;
     }
     rh_insert_unique(table, key_copy, hash, value);
+    return true;
 }
 
 extern bool
@@ -553,12 +500,6 @@ rh_set_resize_threshold(RHTable table, unsigned int percent)
     }
     RH_SET_RESIZE_THRESHOLD_PERCENT(table, percent);
     return true;
-}
-
-extern void
-rh_set_warning_handler(RHWarningHandler handler)
-{
-    warning_handler = handler;
 }
 
 static void
@@ -592,11 +533,7 @@ rhi_create(RHTable table)
     RHIterator iterator =
         (RHIterator)(malloc(sizeof(struct RHIterator_struct)));
 
-    if (iterator == NULL_RHITERATOR)
-    {
-        warning(__FILE__, __LINE__, "malloc", (char*)NULL);
-    }
-    else
+    if (iterator != NULL_RHITERATOR)
     {
         RHI_TABLE(iterator) = table;
         RHI_SET_POSITION(iterator, 0);
@@ -649,47 +586,3 @@ string_hash(const char* text)
     return hash;
 }
 
-#define WARNING_BUFFER_SIZE (1024)
-
-static void
-warning(const char* file, int line, const char* routine, const char* argument)
-{
-    // Read exactly once into a local: warning_handler is a global that
-    // rh_set_warning_handler() can change from another thread at any
-    // time, and re-reading it later (e.g. a second check-then-call)
-    // could see it turn NULL between the check and the call below.
-    RHWarningHandler handler = warning_handler;
-
-    if (handler == NULL)
-    {
-        return;
-    }
-
-    int   saved_errno = errno;          // Read before any other libc calls
-    char* call        = (char*)routine; // Will not modify `routine`
-
-    if (argument != ((const char*)NULL))
-    {
-        int buffer_size = strlen(routine) + strlen(argument) + 3;
-        call            = malloc(buffer_size);
-        if (call == ((void*)NULL))
-        {
-            failure(1, __FILE__, __LINE__, "malloc", (char*)NULL);
-        }
-        else
-        {
-            snprintf(call, buffer_size, "%s(%s)", routine, argument);
-        }
-    }
-
-    char message [WARNING_BUFFER_SIZE];
-    snprintf(message, sizeof(message), "%s:%d: %s: %s", file, line, call,
-             strerror(saved_errno));
-
-    if (call != routine)
-    {
-        free(call);
-    }
-
-    handler(message);
-}

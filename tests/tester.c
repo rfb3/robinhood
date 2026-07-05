@@ -15,8 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 struct test
 {
@@ -33,6 +35,48 @@ struct test
         {                                                                    \
             fprintf(stderr, "%s:%d: FAILED: %s\n", __FILE__, __LINE__,       \
                     #CONDITION);                                             \
+            ++errors;                                                        \
+        }                                                                    \
+    } while (0)
+
+// Like CHECK, but for an equality comparison specifically: reports the
+// actual and expected values on failure, not just the source text of
+// the condition. Both sides are cast to `long long` for printing, so
+// this covers int/size_t/unsigned int alike without needing a
+// separate macro per integer type.
+#define CHECK_EQ_INT(EXPECTED, ACTUAL)                                       \
+    do                                                                       \
+    {                                                                        \
+        long long expected_value_ = (long long)(EXPECTED);                   \
+        long long actual_value_   = (long long)(ACTUAL);                     \
+        if (expected_value_ != actual_value_)                                \
+        {                                                                    \
+            fprintf(stderr,                                                  \
+                    "%s:%d: FAILED: %s == %s"                                \
+                    " (expected %lld, was %lld)\n",                          \
+                    __FILE__, __LINE__, #EXPECTED, #ACTUAL, expected_value_, \
+                    actual_value_);                                          \
+            ++errors;                                                        \
+        }                                                                    \
+    } while (0)
+
+// Like CHECK_EQ_INT, but for a string comparison via strcmp -- reports
+// the actual and expected string content on failure, and treats
+// either side being NULL as a failure rather than crashing on it.
+#define CHECK_STR_EQ(EXPECTED, ACTUAL)                                       \
+    do                                                                       \
+    {                                                                        \
+        const char* expected_value_ = (EXPECTED);                            \
+        const char* actual_value_   = (ACTUAL);                              \
+        if ((expected_value_ == NULL) || (actual_value_ == NULL) ||          \
+            (strcmp(expected_value_, actual_value_) != 0))                   \
+        {                                                                    \
+            fprintf(stderr,                                                  \
+                    "%s:%d: FAILED: %s == %s"                                \
+                    " (expected \"%s\", was \"%s\")\n",                      \
+                    __FILE__, __LINE__, #EXPECTED, #ACTUAL,                  \
+                    expected_value_ ? expected_value_ : "(null)",            \
+                    actual_value_ ? actual_value_ : "(null)");               \
             ++errors;                                                        \
         }                                                                    \
     } while (0)
@@ -56,11 +100,11 @@ make_key(int index, char* buffer, size_t buffer_size);
 static RHTable
 make_populated_table(size_t initial_capacity, int count);
 
-static void
-record_warning(const char* message);
-
 static int
 run_all_tests(void);
+
+static int
+run_test_isolated(int (*function)(void));
 
 static int
 test_basic_operations(void);
@@ -86,9 +130,6 @@ test_probe_stats(void);
 static int
 test_resize_threshold(void);
 
-static int
-test_warning_handler(void);
-
 static const struct test tests [] = {
     {"basic_operations", test_basic_operations},
     {"deletion", test_deletion},
@@ -98,7 +139,6 @@ static const struct test tests [] = {
     {"lifecycle", test_lifecycle},
     {"probe_stats", test_probe_stats},
     {"resize_threshold", test_resize_threshold},
-    {"warning_handler", test_warning_handler},
 };
 
 #define TEST_COUNT (sizeof(tests) / sizeof(tests [0]))
@@ -167,20 +207,6 @@ make_populated_table(size_t initial_capacity, int count)
     return table;
 }
 
-// Captures what a custom warning handler received, so
-// test_warning_handler() can check it -- mirrors directory_scan_table
-// above: the callback signature has no user-data parameter.
-static int  warning_handler_calls = 0;
-static char warning_handler_message [256];
-
-static void
-record_warning(const char* message)
-{
-    ++warning_handler_calls;
-    snprintf(warning_handler_message, sizeof(warning_handler_message), "%s",
-             message);
-}
-
 static int
 run_all_tests(void)
 {
@@ -188,7 +214,7 @@ run_all_tests(void)
 
     for (size_t index = 0; index < TEST_COUNT; ++index)
     {
-        int errors = tests [index].function();
+        int errors = run_test_isolated(tests [index].function);
 
         printf("%s: %s", tests [index].name, (errors == 0) ? "PASS" : "FAIL");
         if (errors != 0)
@@ -203,6 +229,68 @@ run_all_tests(void)
     return total_errors;
 }
 
+// Runs `function` in a forked child process, so a crash inside it
+// (segfault, abort, etc.) fails only that one test category instead
+// of taking down the whole tester binary. The child reports its
+// error count back through a pipe; if it never gets the chance to
+// (killed by a signal before returning), that's reported as its own
+// distinct failure rather than silently read as zero errors.
+static int
+run_test_isolated(int (*function)(void))
+{
+    int pipe_fds [2];
+
+    if (pipe(pipe_fds) != 0)
+    {
+        return function(); // Fall back to running in-process.
+    }
+
+    pid_t pid = fork();
+
+    if (pid < 0)
+    {
+        close(pipe_fds [0]);
+        close(pipe_fds [1]);
+        return function(); // Fall back to running in-process.
+    }
+
+    if (pid == 0)
+    {
+        close(pipe_fds [0]);
+
+        int     errors  = function();
+        ssize_t written = write(pipe_fds [1], &errors, sizeof(errors));
+        (void)written;
+
+        close(pipe_fds [1]);
+        _exit(0);
+    }
+
+    close(pipe_fds [1]);
+
+    int     errors     = 0;
+    ssize_t bytes_read = read(pipe_fds [0], &errors, sizeof(errors));
+    close(pipe_fds [0]);
+
+    int status;
+    waitpid(pid, &status, 0);
+
+    if (bytes_read != ((ssize_t)sizeof(errors)))
+    {
+        errors = 1;
+        if (WIFSIGNALED(status))
+        {
+            fprintf(stderr, "  crashed: %s\n", strsignal(WTERMSIG(status)));
+        }
+        else
+        {
+            fprintf(stderr, "  crashed: exited abnormally\n");
+        }
+    }
+
+    return errors;
+}
+
 static int
 test_basic_operations(void)
 {
@@ -212,27 +300,27 @@ test_basic_operations(void)
     RHTable table = rh_create(32);
 
     CHECK(table != ((RHTable)NULL));
-    CHECK(32 == rh_capacity(table));
-    CHECK(0 == rh_count(table));
+    CHECK_EQ_INT(32, rh_capacity(table));
+    CHECK_EQ_INT(0, rh_count(table));
 
-    rh_set(table, "me", (void*)"foo");
-    rh_set(table, "myself", (void*)"bar");
-    rh_set(table, "I", (void*)"baz");
+    CHECK(rh_set(table, "me", (void*)"foo"));
+    CHECK(rh_set(table, "myself", (void*)"bar"));
+    CHECK(rh_set(table, "I", (void*)"baz"));
 
     CHECK(rh_has(table, "me"));
     CHECK(rh_has(table, "myself"));
     CHECK(rh_has(table, "I"));
     CHECK(!rh_has(table, "nope"));
-    CHECK(3 == rh_count(table));
+    CHECK_EQ_INT(3, rh_count(table));
 
-    CHECK(0 == strcmp("foo", (const char*)(rh_get(table, "me", NULL))));
-    CHECK(0 == strcmp("bar", (const char*)(rh_get(table, "myself", NULL))));
-    CHECK(0 == strcmp("baz", (const char*)(rh_get(table, "I", NULL))));
+    CHECK_STR_EQ("foo", (const char*)(rh_get(table, "me", NULL)));
+    CHECK_STR_EQ("bar", (const char*)(rh_get(table, "myself", NULL)));
+    CHECK_STR_EQ("baz", (const char*)(rh_get(table, "I", NULL)));
     CHECK(NULL == rh_get(table, "nope", NULL));
 
-    rh_set(table, "me", (void*)"updated");
-    CHECK(0 == strcmp("updated", (const char*)(rh_get(table, "me", NULL))));
-    CHECK(3 == rh_count(table));
+    CHECK(rh_set(table, "me", (void*)"updated"));
+    CHECK_STR_EQ("updated", (const char*)(rh_get(table, "me", NULL)));
+    CHECK_EQ_INT(3, rh_count(table));
 
     rh_destroy(&table);
 
@@ -245,23 +333,23 @@ test_deletion(void)
     int errors = 0;
 
     RHTable table = rh_create(32);
-    rh_set(table, "me", (void*)"foo");
-    rh_set(table, "myself", (void*)"bar");
-    rh_set(table, "I", (void*)"baz");
+    CHECK(rh_set(table, "me", (void*)"foo"));
+    CHECK(rh_set(table, "myself", (void*)"bar"));
+    CHECK(rh_set(table, "I", (void*)"baz"));
 
     rh_clear(table, "myself");
     CHECK(!rh_has(table, "myself"));
     CHECK(rh_has(table, "me"));
     CHECK(rh_has(table, "I"));
-    CHECK(2 == rh_count(table));
+    CHECK_EQ_INT(2, rh_count(table));
 
-    rh_set(table, "myself", (void*)"bar-again");
+    CHECK(rh_set(table, "myself", (void*)"bar-again"));
     CHECK(rh_has(table, "myself"));
-    CHECK(3 == rh_count(table));
+    CHECK_EQ_INT(3, rh_count(table));
 
     // Clearing a key that was never present is a no-op, not an error
     rh_clear(table, "nonexistent");
-    CHECK(3 == rh_count(table));
+    CHECK_EQ_INT(3, rh_count(table));
 
     rh_destroy(&table);
 
@@ -276,7 +364,7 @@ test_deletion(void)
         rh_clear(small, key);
     }
 
-    CHECK(32 == rh_count(small));
+    CHECK_EQ_INT(32, rh_count(small));
 
     for (int index = 0; index < 64; ++index)
     {
@@ -301,28 +389,28 @@ test_directory_scan(void)
 {
     int errors = 0;
 
-    // Point SCAN_ROOT at a bigger tree to stress-test the table with
+    // Point scan_root at a bigger tree to stress-test the table with
     // far more entries.
-    const char* SCAN_ROOT = ".";
+    const char* scan_root = ".";
 
     RHTable table        = rh_create(16);
     directory_scan_table = table;
 
-    int walk_result = nftw(SCAN_ROOT, directory_scan_visitor, 20, FTW_PHYS);
-    CHECK(0 == walk_result);
+    int walk_result = nftw(scan_root, directory_scan_visitor, 20, FTW_PHYS);
+    CHECK_EQ_INT(0, walk_result);
     CHECK(rh_count(table) > 0);
 
     char known_path [512];
-    snprintf(known_path, sizeof(known_path), "%s/src/robinhood.c", SCAN_ROOT);
+    snprintf(known_path, sizeof(known_path), "%s/src/robinhood.c", scan_root);
 
     struct stat direct_stat;
-    CHECK(0 == stat(known_path, &direct_stat));
+    CHECK_EQ_INT(0, stat(known_path, &direct_stat));
 
     struct stat* found = (struct stat*)(rh_get(table, known_path, NULL));
     CHECK(found != NULL);
     if (found != NULL)
     {
-        CHECK(found->st_ino == direct_stat.st_ino);
+        CHECK_EQ_INT(found->st_ino, direct_stat.st_ino);
     }
 
     // The table only owns the key copies it makes internally -- free the
@@ -352,14 +440,14 @@ test_growth(void)
     RHTable small = make_populated_table(4, 64);
     char    key [16];
 
-    CHECK(64 == rh_count(small));
+    CHECK_EQ_INT(64, rh_count(small));
     CHECK(rh_capacity(small) > 4);
 
     for (int index = 0; index < 64; ++index)
     {
         make_key(index, key, sizeof(key));
         CHECK(rh_has(small, key));
-        CHECK(((long int)index) == ((long int)(rh_get(small, key, NULL))));
+        CHECK_EQ_INT(index, (long int)(rh_get(small, key, NULL)));
     }
 
     rh_destroy(&small);
@@ -393,7 +481,7 @@ test_iteration(void)
         const char* visited_key = rhi_key(it);
         int         index;
 
-        CHECK(1 == sscanf(visited_key, "key%d", &index));
+        CHECK_EQ_INT(1, sscanf(visited_key, "key%d", &index));
         CHECK(!seen [index]);
         seen [index] = true;
         ++visited;
@@ -412,11 +500,11 @@ test_iteration(void)
 
     rhi_destroy(it);
 
-    CHECK(32 == visited);
+    CHECK_EQ_INT(32, visited);
 
     for (int index = 0; index < 64; ++index)
     {
-        CHECK(seen [index] == (index % 2 == 1));
+        CHECK_EQ_INT(seen [index], (index % 2 == 1));
     }
 
     rh_destroy(&small);
@@ -433,7 +521,7 @@ test_lifecycle(void)
     char    key [16];
 
     rh_empty(small);
-    CHECK(0 == rh_count(small));
+    CHECK_EQ_INT(0, rh_count(small));
 
     for (int index = 0; index < 64; ++index)
     {
@@ -458,11 +546,11 @@ test_lifecycle(void)
     // 0 and 1 both round up to a capacity of 1 (next_power_of_two's
     // n <= 1 case), rather than the general power-of-two rounding below
     RHTable minimal = rh_create(0);
-    CHECK(1 == rh_capacity(minimal));
+    CHECK_EQ_INT(1, rh_capacity(minimal));
     rh_destroy(&minimal);
 
     minimal = rh_create(1);
-    CHECK(1 == rh_capacity(minimal));
+    CHECK_EQ_INT(1, rh_capacity(minimal));
     rh_destroy(&minimal);
 
     // A capacity request too large to round up to the next power of two
@@ -485,8 +573,8 @@ test_probe_stats(void)
     struct RHProbeStats stats;
 
     rh_probe_stats(empty, &stats);
-    CHECK(0 == stats.count);
-    CHECK(0 == stats.max_distance);
+    CHECK_EQ_INT(0, stats.count);
+    CHECK_EQ_INT(0, stats.max_distance);
     CHECK(0.0 == stats.mean_distance);
     CHECK(0.0 == stats.stddev_distance);
 
@@ -498,7 +586,7 @@ test_probe_stats(void)
     RHTable small = make_populated_table(4, 64);
 
     rh_probe_stats(small, &stats);
-    CHECK(rh_count(small) == stats.count);
+    CHECK_EQ_INT(rh_count(small), stats.count);
     CHECK(stats.max_distance < rh_capacity(small));
     CHECK(stats.mean_distance >= 0.0);
     CHECK(stats.stddev_distance >= 0.0);
@@ -509,7 +597,7 @@ test_probe_stats(void)
     {
         histogram_total += stats.histogram [index];
     }
-    CHECK(histogram_total == stats.count);
+    CHECK_EQ_INT(histogram_total, stats.count);
 
     rh_destroy(&small);
 
@@ -522,20 +610,20 @@ test_resize_threshold(void)
     int errors = 0;
 
     RHTable table = rh_create(16);
-    CHECK(80 == rh_resize_threshold(table));
+    CHECK_EQ_INT(80, rh_resize_threshold(table));
 
     CHECK(rh_set_resize_threshold(table, 70));
-    CHECK(70 == rh_resize_threshold(table));
+    CHECK_EQ_INT(70, rh_resize_threshold(table));
 
     CHECK(!rh_set_resize_threshold(table, 0));
-    CHECK(70 == rh_resize_threshold(table));
+    CHECK_EQ_INT(70, rh_resize_threshold(table));
     CHECK(!rh_set_resize_threshold(table, 101));
-    CHECK(70 == rh_resize_threshold(table));
+    CHECK_EQ_INT(70, rh_resize_threshold(table));
 
     CHECK(rh_set_resize_threshold(table, 1));
-    CHECK(1 == rh_resize_threshold(table));
+    CHECK_EQ_INT(1, rh_resize_threshold(table));
     CHECK(rh_set_resize_threshold(table, 100));
-    CHECK(100 == rh_resize_threshold(table));
+    CHECK_EQ_INT(100, rh_resize_threshold(table));
 
     rh_destroy(&table);
 
@@ -546,7 +634,7 @@ test_resize_threshold(void)
     char    key [16];
 
     CHECK(rh_set_resize_threshold(strict, 50));
-    CHECK(80 == rh_resize_threshold(relaxed)); // left at the default
+    CHECK_EQ_INT(80, rh_resize_threshold(relaxed)); // left at the default
 
     for (int index = 0; index < 5; ++index)
     {
@@ -555,47 +643,11 @@ test_resize_threshold(void)
         rh_set(relaxed, key, (void*)(long int)index);
     }
 
-    CHECK(16 == rh_capacity(strict));
-    CHECK(8 == rh_capacity(relaxed));
+    CHECK_EQ_INT(16, rh_capacity(strict));
+    CHECK_EQ_INT(8, rh_capacity(relaxed));
 
     rh_destroy(&strict);
     rh_destroy(&relaxed);
-
-    return errors;
-}
-
-static int
-test_warning_handler(void)
-{
-    int errors = 0;
-
-    // An absurdly large capacity reliably fails calloc() without
-    // needing to actually exhaust real memory.
-    size_t huge = ((size_t)1) << 60;
-
-    warning_handler_calls       = 0;
-    warning_handler_message [0] = '\0';
-    rh_set_warning_handler(record_warning);
-
-    RHTable failed = rh_create(huge);
-    CHECK(failed == ((RHTable)NULL));
-    CHECK(1 == warning_handler_calls);
-    CHECK(strstr(warning_handler_message, "calloc") != NULL);
-
-    // NULL suppresses entirely -- confirm no further calls happen
-    warning_handler_calls = 0;
-    rh_set_warning_handler(NULL);
-    failed = rh_create(huge);
-
-    CHECK(failed == ((RHTable)NULL));
-    CHECK(0 == warning_handler_calls);
-
-    // Restore default behavior for whatever runs after this test
-    rh_set_warning_handler(rh_default_warning_handler);
-
-    // Confirm the restored handler is actually reachable, not just assigned
-    failed = rh_create(huge);
-    CHECK(failed == ((RHTable)NULL));
 
     return errors;
 }

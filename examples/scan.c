@@ -49,6 +49,7 @@ struct scan_context
 
     size_t unreadable_count;
     size_t excluded_root_count;
+    size_t store_failed_count;
 };
 
 // ===========================================================================
@@ -70,7 +71,9 @@ static void
 print_usage(const char* program_name);
 
 static void
-store_entry(RHTable table, const char* path, const struct stat* entry_stat);
+store_entry(struct scan_context* context,
+            const char*          path,
+            const struct stat*   entry_stat);
 
 static void
 walk(int                    dir_fd,
@@ -213,6 +216,7 @@ main(int argc, char** argv)
     context.path_length         = 0;
     context.unreadable_count    = 0;
     context.excluded_root_count = 0;
+    context.store_failed_count  = 0;
 
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -227,11 +231,13 @@ main(int argc, char** argv)
 
     printf("%s: %zu entries, capacity %zu, %.3f seconds"
            " (cross_mounts=%s, follow_symlinks=%s, excludes=%zu,"
-           " unreadable=%zu, excluded_roots=%zu, resize_threshold=%u)\n",
+           " unreadable=%zu, excluded_roots=%zu, store_failed=%zu,"
+           " resize_threshold=%u)\n",
            root, rh_count(table), rh_capacity(table), elapsed_seconds,
            cross_mounts ? "yes" : "no", follow_symlinks ? "yes" : "no",
            excludes_count, context.unreadable_count,
-           context.excluded_root_count, rh_resize_threshold(table));
+           context.excluded_root_count, context.store_failed_count,
+           rh_resize_threshold(table));
 
     if (probe_stats)
     {
@@ -353,17 +359,24 @@ print_usage(const char* program_name)
 }
 
 static void
-store_entry(RHTable table, const char* path, const struct stat* entry_stat)
+store_entry(struct scan_context* context,
+            const char*          path,
+            const struct stat*   entry_stat)
 {
     struct stat* stat_copy = (struct stat*)(malloc(sizeof(struct stat)));
 
     if (stat_copy == NULL)
     {
+        ++context->store_failed_count;
         return;
     }
 
     memcpy(stat_copy, entry_stat, sizeof(struct stat));
-    rh_set(table, path, stat_copy);
+    if (!rh_set(context->table, path, stat_copy))
+    {
+        free(stat_copy);
+        ++context->store_failed_count;
+    }
 }
 
 // Manages a single shared path buffer (`context->path_buffer`) instead of
@@ -446,7 +459,7 @@ walk_body(int                    dir_fd,
     bool crosses_mount = (!context->cross_mounts) &&
                          (entry_stat.st_dev != context->root_device);
 
-    store_entry(context->table, full_path, &entry_stat);
+    store_entry(context, full_path, &entry_stat);
 
     if (crosses_mount || !S_ISDIR(entry_stat.st_mode))
     {

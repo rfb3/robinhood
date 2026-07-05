@@ -12,9 +12,7 @@
 /// Not thread-safe: concurrent operations on the *same* RHTable or
 /// RHIterator (including one of each derived from the other) require
 /// external synchronization by the caller. Different tables may be
-/// used concurrently from different threads with no extra care. See
-/// rh_set_warning_handler() for the one piece of process-wide global
-/// state and its own, narrower guarantee.
+/// used concurrently from different threads with no extra care.
 ///
 
 #ifndef ROBIN_HOOD_HEADER_INCLUDED
@@ -189,8 +187,13 @@ rh_resize_threshold(RHTable table);
 /// @param table  The table to insert or update in.
 /// @param key    The key to insert or update.
 /// @param value  The value to associate with `key`.
+/// @return       true if the key/value pair is now in the table; false
+///               on allocation failure -- including a failed resize,
+///               which fails the whole operation rather than
+///               silently exceeding the table's configured
+///               resize threshold.
 ///
-extern void
+extern bool
 rh_set(RHTable table, const char* key, void* value);
 
 ///
@@ -280,55 +283,5 @@ rhi_key(RHIterator iterator);
 ///
 extern void
 rhi_reset(RHIterator iterator);
-
-// ===========================================================================
-// Global configuration
-// ===========================================================================
-
-///
-/// Signature for a custom warning handler -- see
-/// rh_set_warning_handler(). `message` is a single, complete,
-/// already-formatted string (no trailing newline) describing what
-/// happened. It's only valid for the duration of the call; copy it if
-/// you need to keep it.
-///
-typedef void (*RHWarningHandler)(const char* message);
-
-///
-/// The library's own default warning handler: prints `message` to
-/// stderr via warn(3) (prefixed with the program's name, per warn(3)'s
-/// own behavior). Installed automatically -- there's no need to pass
-/// this to rh_set_warning_handler() yourself unless you've already
-/// installed something else and want to restore default behavior.
-///
-/// @param message  The message to print, as described in
-///                 RHWarningHandler's own documentation.
-///
-extern void
-rh_default_warning_handler(const char* message);
-
-///
-/// Installs a handler for the library's internal warnings (currently:
-/// allocation failures inside rh_create()/rh_set()/rh_maybe_grow()/
-/// rhi_create()). This is a global, process-wide setting, not
-/// per-table -- some warnings (rh_create() failing to allocate the
-/// table itself) happen before any RHTable exists to attach a
-/// per-instance setting to. Like the rest of this library, it's
-/// unsynchronized global state -- fine for single-threaded use or if
-/// you set it once up front. warning() reads this exactly once per
-/// call, so a concurrent change can't crash it (e.g. by seeing NULL at
-/// one read and a stale handler at another) -- but which handler
-/// receives any given in-flight warning is still unpredictable, so
-/// this isn't a substitute for real synchronization if you need
-/// deterministic ordering.
-///
-/// @param handler  Called for each warning from then on. Pass NULL to
-///                 suppress warnings entirely. The default, before
-///                 this is ever called, prints to stderr (see
-///                 warn(3)) -- programs that never call this see no
-///                 change in behavior.
-///
-extern void
-rh_set_warning_handler(RHWarningHandler handler);
 
 #endif // ROBIN_HOOD_HEADER_INCLUDED

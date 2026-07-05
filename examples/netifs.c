@@ -231,7 +231,10 @@ main(int argc, char** argv)
         info->flags = entry->ifa_flags;
         memcpy(info->address, address, sizeof(address));
 
-        rh_set(table, key, info);
+        if (!rh_set(table, key, info))
+        {
+            free(info);
+        }
     }
 
     freeifaddrs(addresses);

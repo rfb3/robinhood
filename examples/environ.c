@@ -92,6 +92,8 @@ main(int argc, char** argv)
         return 2;
     }
 
+    size_t store_failed = 0;
+
     for (char** entry = environ; *entry != NULL; ++entry)
     {
         const char* equals = strchr(*entry, '=');
@@ -117,13 +119,21 @@ main(int argc, char** argv)
         // Last occurrence of a duplicate name wins, since that falls
         // out naturally from rh_set() semantics -- contrast getenv(3),
         // which is documented to return the *first* match instead.
-        rh_set(table, name, (void*)(equals + 1));
+        if (!rh_set(table, name, (void*)(equals + 1)))
+        {
+            ++store_failed;
+        }
     }
 
     size_t entry_count = rh_count(table);
 
-    printf("%zu environment variable%s:\n\n", entry_count,
+    printf("%zu environment variable%s", entry_count,
            (entry_count == 1) ? "" : "s");
+    if (store_failed > 0)
+    {
+        printf(" (%zu not stored -- allocation failed)", store_failed);
+    }
+    printf(":\n\n");
 
     const char** keys =
         (const char**)(malloc(entry_count * sizeof(const char*)));

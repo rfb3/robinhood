@@ -130,7 +130,8 @@ main(int argc, char** argv)
         return 2;
     }
 
-    size_t total_words = 0;
+    size_t total_words  = 0;
+    size_t store_failed = 0;
     char   word [256];
 
     while (scanf("%255s", word) == 1)
@@ -141,14 +142,23 @@ main(int argc, char** argv)
         }
 
         long int count = (long int)(rh_get(table, word, NULL));
-        rh_set(table, word, (void*)(count + 1));
+        if (!rh_set(table, word, (void*)(count + 1)))
+        {
+            ++store_failed;
+        }
         ++total_words;
     }
 
     size_t distinct_words = rh_count(table);
 
-    printf("%zu distinct word%s, %zu total\n", distinct_words,
-           (distinct_words == 1) ? "" : "s", total_words);
+    printf("%zu distinct word%s, %zu total",
+           distinct_words, (distinct_words == 1) ? "" : "s", total_words);
+    if (store_failed > 0)
+    {
+        printf(" (%zu word%s not counted -- allocation failed)",
+               store_failed, (store_failed == 1) ? "" : "s");
+    }
+    printf("\n");
 
     // malloc(0) is implementation-defined and may legitimately return
     // NULL, so an empty table (distinct_words == 0) must skip

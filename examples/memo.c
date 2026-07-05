@@ -61,8 +61,15 @@ fib_memo(RHTable table, int n, struct fib_stats* stats)
     }
 
     uint64_t* stored = (uint64_t*)(malloc(sizeof(uint64_t)));
-    *stored          = result;
-    rh_set(table, key, stored);
+
+    if (stored != NULL)
+    {
+        *stored = result;
+        if (!rh_set(table, key, stored))
+        {
+            free(stored);
+        }
+    }
 
     return result;
 }
