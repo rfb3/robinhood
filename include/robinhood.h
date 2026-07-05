@@ -144,10 +144,13 @@ rh_has(RHTable table, const char* key);
 ///
 struct RHProbeStats
 {
-    size_t count;
-    size_t max_distance;
-    double mean_distance;
-    double stddev_distance;
+    size_t count;           ///< Entries scanned (the table's key count).
+    size_t max_distance;    ///< The largest probe distance seen.
+    double mean_distance;   ///< The average probe distance.
+    double stddev_distance; ///< The probe distance's standard deviation.
+
+    /// Entry count per bucket -- see RH_PROBE_HISTOGRAM_BUCKETS for how
+    /// a distance maps to a bucket index.
     size_t histogram [RH_PROBE_HISTOGRAM_BUCKETS];
 };
 
