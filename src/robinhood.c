@@ -350,7 +350,7 @@ rh_insert_unique (RHTable  table,
     RHE_SET_DISTANCE (carry, 0);
     RHE_SET_STATE    (carry, USED);
 
-    for (;;)
+    while (true)
     {
         RHEntry* slot = &entries [pos];
 
