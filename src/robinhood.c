@@ -250,7 +250,9 @@ rh_maybe_grow(RHTable table)
         (RHEntry*)(calloc(new_capacity, sizeof(struct RHEntry_struct)));
     if (new_entries == NULL)
     {
-        return false;
+        // Genuine allocation failure -- not realistically forced without
+        // a fault-injecting allocator, so excluded from coverage.
+        return false; // LCOV_EXCL_LINE
     }
 
     RH_SET_ENTRIES(table, new_entries);
@@ -335,9 +337,12 @@ rh_create(size_t initial_capacity)
 
         if (entries == ((RHEntry*)NULL))
         {
-            free((void*)result);
+            // Genuine allocation failure -- not realistically forced
+            // without a fault-injecting allocator, so excluded from
+            // coverage (see rh_maybe_grow()'s equivalent above).
+            free((void*)result);  // LCOV_EXCL_START
             result = NULL_RHTABLE;
-        }
+        } // LCOV_EXCL_STOP
         else
         {
             RH_SET_CAPACITY(result, capacity);
@@ -472,13 +477,16 @@ rh_set(RHTable table, const char* key, void* value)
 
     if (!rh_maybe_grow(table))
     {
-        return false;
+        return false; // LCOV_EXCL_LINE -- rh_maybe_grow()'s own failure
+                      // path is already excluded; nothing new to cover.
     }
 
     char* key_copy = dup_string(key);
     if (key_copy == NULL)
     {
-        return false;
+        // Genuine allocation failure -- not realistically forced without
+        // a fault-injecting allocator, so excluded from coverage.
+        return false; // LCOV_EXCL_LINE
     }
     rh_insert_unique(table, key_copy, hash, value);
     return true;
