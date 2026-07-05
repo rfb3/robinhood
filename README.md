@@ -206,7 +206,7 @@ automatically on every push to `main` (see
 `.github/workflows/docs.yml`), so there's no generated HTML checked
 into this repo itself.
 
-[gh-pages]: https://rfb3.github.io/robinhood/robinhood_8h.html#func-members
+[gh-pages]: https://rfb3.github.io/robinhood/
 
 ## Code coverage
 
