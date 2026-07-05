@@ -1,4 +1,4 @@
-name: Deploy Doxygen docs to Pages
+name: Deploy docs + coverage to Pages
 
 # Only deploys from main, so Pages always reflects the canonical branch;
 # workflow_dispatch allows a manual re-run without needing a new push.
@@ -24,8 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Doxygen
-        run: sudo apt-get update && sudo apt-get install -y doxygen
+      - name: Install Doxygen and lcov
+        run: sudo apt-get update && sudo apt-get install -y doxygen lcov
 
       - name: Configure
         run: ./configure
@@ -33,10 +33,24 @@ jobs:
       - name: Generate docs
         run: make docs
 
+      - name: Generate coverage report
+        run: make coverage-html
+
+      # GitHub Pages serves one artifact tree per site, so both
+      # generated reports are assembled under a single root before
+      # upload: Doxygen at the site root (matching the existing
+      # rfb3.github.io/robinhood/ link), lcov's HTML under /coverage/.
+      - name: Assemble Pages site
+        run: |
+          mkdir -p pages-site
+          cp -r docs/html/. pages-site/
+          mkdir -p pages-site/coverage
+          cp -r coverage-html/. pages-site/coverage/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/html
+          path: pages-site
 
   deploy:
     needs: build
