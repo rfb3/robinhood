@@ -130,8 +130,7 @@ main(int argc, char** argv)
 
         uint64_t recomputed = fibonacci_memo(table, k, &stats);
 
-        printf("fibonacci(%d) recomputed: %llu (%zu hit%s, %zu miss%s)\n",
-               k,
+        printf("fibonacci(%d) recomputed: %llu (%zu hit%s, %zu miss%s)\n", k,
                (unsigned long long int)recomputed, stats.hits,
                (stats.hits == 1) ? "" : "s", stats.misses,
                (stats.misses == 1) ? "" : "es");

@@ -323,7 +323,7 @@ rh_create(size_t initial_capacity)
             // Genuine allocation failure -- not realistically forced
             // without a fault-injecting allocator, so excluded from
             // coverage (see rh_maybe_grow()'s equivalent above).
-            free((void*)result);  // LCOV_EXCL_START
+            free((void*)result); // LCOV_EXCL_START
             result = NULL_RHTABLE;
         } // LCOV_EXCL_STOP
         else
