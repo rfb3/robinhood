@@ -31,3 +31,42 @@ jobs:
       # catches heap overflows/UB, just not leaks.
       - name: Sanitize (ASan + UBSan)
         run: make sanitize
+
+  musl:
+    # musl is the fourth platform family every ./configure feature check
+    # (and STYLE.md/README.md/CLAUDE.md) claims support for ("macOS, the
+    # BSDs, glibc, and musl"), but which was never actually built anywhere
+    # in CI until now. Runs in an Alpine container since GitHub doesn't
+    # offer a musl-based hosted runner directly. Verified locally first
+    # (via `docker run alpine:latest`) before wiring this in.
+    runs-on: ubuntu-latest
+    container: alpine:latest
+    steps:
+      # gcompat is required before anything else: actions/checkout (and
+      # every other JS-based action) runs on a Node.js binary the runner
+      # injects into the container, and that binary is glibc-linked --
+      # without gcompat's compatibility shim, the very first action step
+      # fails with a GLIBC-version-not-found error before reaching any of
+      # our own steps. This is a well-known Alpine-container gotcha, not
+      # specific to this project (see actions/checkout#1487, #1590,
+      # #1474).
+      - name: Install build tools
+        run: apk add --no-cache build-base gcompat
+
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        run: ./configure
+
+      - name: Build
+        run: make
+
+      - name: Test
+        run: make test
+
+      # No sanitize leg here: Alpine doesn't package libasan/libubsan at
+      # all (confirmed -- no apk package ships them), since musl's
+      # internals differ enough from glibc's that GCC's sanitizer
+      # runtimes aren't built for it. `make sanitize` fails to link on
+      # this platform ("cannot find -lasan"/"-lubsan"), not a bug in our
+      # own code.
