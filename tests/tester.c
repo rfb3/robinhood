@@ -127,9 +127,6 @@ test_lifecycle(void);
 static int
 test_probe_stats(void);
 
-static int
-test_resize_threshold(void);
-
 static const struct test tests [] = {
     {"basic_operations", test_basic_operations},
     {"deletion", test_deletion},
@@ -138,7 +135,6 @@ static const struct test tests [] = {
     {"iteration", test_iteration},
     {"lifecycle", test_lifecycle},
     {"probe_stats", test_probe_stats},
-    {"resize_threshold", test_resize_threshold},
 };
 
 #define TEST_COUNT (sizeof(tests) / sizeof(tests [0]))
@@ -452,6 +448,24 @@ test_growth(void)
 
     rh_destroy(&small);
 
+    // The table grows at exactly 80% load factor: capacity 8 holds up
+    // to 6 entries (7th would be 700/800 -> 87.5%, over threshold) at
+    // capacity 8 before the 7th insertion forces a doubling to 16.
+    RHTable boundary = rh_create(8);
+
+    for (int index = 0; index < 6; ++index)
+    {
+        make_key(index, key, sizeof(key));
+        rh_set(boundary, key, (void*)(long int)index);
+    }
+    CHECK_EQ_INT(8, rh_capacity(boundary));
+
+    make_key(6, key, sizeof(key));
+    rh_set(boundary, key, (void*)(long int)6);
+    CHECK_EQ_INT(16, rh_capacity(boundary));
+
+    rh_destroy(&boundary);
+
     return errors;
 }
 
@@ -600,54 +614,6 @@ test_probe_stats(void)
     CHECK_EQ_INT(histogram_total, stats.count);
 
     rh_destroy(&small);
-
-    return errors;
-}
-
-static int
-test_resize_threshold(void)
-{
-    int errors = 0;
-
-    RHTable table = rh_create(16);
-    CHECK_EQ_INT(80, rh_resize_threshold(table));
-
-    CHECK(rh_set_resize_threshold(table, 70));
-    CHECK_EQ_INT(70, rh_resize_threshold(table));
-
-    CHECK(!rh_set_resize_threshold(table, 0));
-    CHECK_EQ_INT(70, rh_resize_threshold(table));
-    CHECK(!rh_set_resize_threshold(table, 101));
-    CHECK_EQ_INT(70, rh_resize_threshold(table));
-
-    CHECK(rh_set_resize_threshold(table, 1));
-    CHECK_EQ_INT(1, rh_resize_threshold(table));
-    CHECK(rh_set_resize_threshold(table, 100));
-    CHECK_EQ_INT(100, rh_resize_threshold(table));
-
-    rh_destroy(&table);
-
-    // A lower threshold should trigger growth sooner, for the same
-    // sequence of insertions into the same initial capacity
-    RHTable strict  = rh_create(8);
-    RHTable relaxed = rh_create(8);
-    char    key [16];
-
-    CHECK(rh_set_resize_threshold(strict, 50));
-    CHECK_EQ_INT(80, rh_resize_threshold(relaxed)); // left at the default
-
-    for (int index = 0; index < 5; ++index)
-    {
-        make_key(index, key, sizeof(key));
-        rh_set(strict, key, (void*)(long int)index);
-        rh_set(relaxed, key, (void*)(long int)index);
-    }
-
-    CHECK_EQ_INT(16, rh_capacity(strict));
-    CHECK_EQ_INT(8, rh_capacity(relaxed));
-
-    rh_destroy(&strict);
-    rh_destroy(&relaxed);
 
     return errors;
 }

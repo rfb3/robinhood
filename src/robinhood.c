@@ -46,31 +46,32 @@ typedef struct RHEntry_struct RHEntry;
 #define RHE_SET_DISTANCE(ENTRY, DISTANCE) (((ENTRY).distance) = (DISTANCE))
 #define RHE_SET_STATE(ENTRY, STATE)       (((ENTRY).state) = (STATE))
 
-// See rh_resize_threshold()'s doc comment in robinhood.h for details.
-#define RH_DEFAULT_RESIZE_THRESHOLD_PERCENT (80)
+// The table grows whenever the next insertion would push its load
+// factor past this percentage of capacity -- see rh_maybe_grow().
+// Matches, e.g., Java's HashMap default of 0.75, adjusted slightly
+// looser; see PERFORMANCE.md's "Configurable resize threshold" section
+// for the empirical case that no other fixed value in the 70-90% range
+// is worth the complexity of making this configurable.
+#define RH_RESIZE_THRESHOLD_PERCENT (80)
 
 struct RHTable_struct
 {
-    RHEntry*     entries;
-    size_t       capacity;
-    size_t       count;
-    unsigned int resize_threshold_percent;
+    RHEntry* entries;
+    size_t   capacity;
+    size_t   count;
 };
 
 typedef struct RHTable_struct* RHTable;
 
 #define NULL_RHTABLE ((RHTable)NULL)
 
-#define RH_ENTRIES(TABLE)                  ((TABLE)->entries)
-#define RH_CAPACITY(TABLE)                 ((TABLE)->capacity)
-#define RH_COUNT(TABLE)                    ((TABLE)->count)
-#define RH_RESIZE_THRESHOLD_PERCENT(TABLE) ((TABLE)->resize_threshold_percent)
+#define RH_ENTRIES(TABLE)  ((TABLE)->entries)
+#define RH_CAPACITY(TABLE) ((TABLE)->capacity)
+#define RH_COUNT(TABLE)    ((TABLE)->count)
 
 #define RH_SET_ENTRIES(TABLE, ENTRIES)   (((TABLE)->entries) = (ENTRIES))
 #define RH_SET_CAPACITY(TABLE, CAPACITY) (((TABLE)->capacity) = (CAPACITY))
 #define RH_SET_COUNT(TABLE, COUNT)       (((TABLE)->count) = (COUNT))
-#define RH_SET_RESIZE_THRESHOLD_PERCENT(TABLE, PERCENT)                      \
-    (((TABLE)->resize_threshold_percent) = (PERCENT))
 
 struct RHIterator_struct
 {
@@ -227,18 +228,18 @@ rh_insert_unique(RHTable table, char* key, uint64_t hash, void* value)
     }
 }
 
-// Doubles capacity and rehashes whenever load factor would exceed the
-// table's own resize_threshold_percent -- see rh_resize_threshold().
-// Returns false (table left unchanged) if growth was needed but the
-// allocation failed -- callers fail the whole operation rather than
-// insert into a table that's silently over its configured threshold.
+// Doubles capacity and rehashes whenever load factor would exceed
+// RH_RESIZE_THRESHOLD_PERCENT. Returns false (table left unchanged) if
+// growth was needed but the allocation failed -- callers fail the
+// whole operation rather than insert into a table that's silently
+// over that threshold.
 static bool
 rh_maybe_grow(RHTable table)
 {
     size_t old_capacity = RH_CAPACITY(table);
 
     if (((RH_COUNT(table) + 1) * 100) <=
-        (old_capacity * RH_RESIZE_THRESHOLD_PERCENT(table)))
+        (old_capacity * RH_RESIZE_THRESHOLD_PERCENT))
     {
         return true;
     }
@@ -342,8 +343,6 @@ rh_create(size_t initial_capacity)
             RH_SET_CAPACITY(result, capacity);
             RH_SET_COUNT(result, 0);
             RH_SET_ENTRIES(result, entries);
-            RH_SET_RESIZE_THRESHOLD_PERCENT(
-                result, RH_DEFAULT_RESIZE_THRESHOLD_PERCENT);
         }
     }
 
@@ -459,12 +458,6 @@ rh_probe_stats(RHTable table, struct RHProbeStats* out_stats)
     out_stats->stddev_distance = sqrt((variance < 0.0) ? 0.0 : variance);
 }
 
-extern unsigned int
-rh_resize_threshold(RHTable table)
-{
-    return RH_RESIZE_THRESHOLD_PERCENT(table);
-}
-
 extern bool
 rh_set(RHTable table, const char* key, void* value)
 {
@@ -488,17 +481,6 @@ rh_set(RHTable table, const char* key, void* value)
         return false;
     }
     rh_insert_unique(table, key_copy, hash, value);
-    return true;
-}
-
-extern bool
-rh_set_resize_threshold(RHTable table, unsigned int percent)
-{
-    if ((percent < 1) || (percent > 100))
-    {
-        return false;
-    }
-    RH_SET_RESIZE_THRESHOLD_PERCENT(table, percent);
     return true;
 }
 

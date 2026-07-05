@@ -6,7 +6,6 @@
 
 #include "robinhood.h"
 
-#include <getopt.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -77,69 +76,24 @@ fib_memo(RHTable table, int n, struct fib_stats* stats)
 int
 main(int argc, char** argv)
 {
-    bool         have_resize_threshold = false;
-    unsigned int resize_threshold      = 0;
-    const char*  n_arg                 = NULL;
-
-    enum
-    {
-        OPT_RESIZE_THRESHOLD = 256
-    };
-
-    static const struct option long_options [] = {
-        {"resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD},
-        {NULL, 0, NULL, 0}};
-
-    opterr = 0;
-
-    int opt;
-    while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1)
-    {
-        switch (opt)
-        {
-        case OPT_RESIZE_THRESHOLD:
-            resize_threshold      = (unsigned int)(strtoul(optarg, NULL, 10));
-            have_resize_threshold = true;
-            break;
-        default:
-            print_usage(argv [0]);
-            return 2;
-        }
-    }
-
-    if (optind < argc)
-    {
-        n_arg = argv [optind];
-        ++optind;
-    }
-
-    if ((n_arg == NULL) || (optind != argc))
+    if (argc != 2)
     {
         print_usage(argv [0]);
         return 2;
     }
 
-    char*    end = NULL;
-    long int n   = strtol(n_arg, &end, 10);
+    char*    end   = NULL;
+    long int n     = strtol(argv [1], &end, 10);
+    bool     valid = (end != argv [1]) && (*end == '\0') && (n >= 0) &&
+                  (n <= 90);
 
-    if ((end == n_arg) || (*end != '\0') || (n < 0) || (n > 90))
+    if (!valid)
     {
         print_usage(argv [0]);
         return 2;
     }
 
     RHTable table = rh_create(16);
-
-    if (have_resize_threshold &&
-        !rh_set_resize_threshold(table, resize_threshold))
-    {
-        fprintf(stderr,
-                "%s: invalid --resize-threshold value '%u'"
-                " (must be 1-100)\n",
-                argv [0], resize_threshold);
-        rh_destroy(&table);
-        return 2;
-    }
 
     struct fib_stats stats;
     stats.hits   = 0;
@@ -208,7 +162,7 @@ static void
 print_usage(const char* program_name)
 {
     fprintf(stderr,
-            "usage: %s [--resize-threshold PERCENT] <n>\n"
+            "usage: %s <n>\n"
             "\n"
             "Computes fib(n) via recursion memoized in an RHTable"
             " (key: n as a\n"
@@ -217,9 +171,6 @@ print_usage(const char* program_name)
             "rh_has/rh_get/rh_set as a cache, and rh_clear as"
             " invalidation.\n"
             "n must be an integer in [0, 90] (fib(91) would overflow"
-            " uint64_t).\n"
-            "--resize-threshold PERCENT sets the table's resize"
-            " threshold (1-100,\n"
-            "default 80) -- see rh_set_resize_threshold().\n",
+            " uint64_t).\n",
             program_name);
 }

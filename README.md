@@ -66,12 +66,9 @@ patterns instead of one superseding the others:
   `--follow-symlinks`, `--exclude PATH` (repeatable), `--probe-stats`
   (prints Robin Hood probe-depth statistics -- mean/max/stddev and a
   histogram -- after the walk; off by default, though measured
-  overhead is negligible, see `PERFORMANCE.md`), `--resize-threshold
-  PERCENT` (sets the table's resize threshold via
-  `rh_set_resize_threshold()` -- 1-100, default 80; see
-  `PERFORMANCE.md` for whether changing it is actually worth it). See
-  `PERFORMANCE.md` for real-world timings, including scans of an
-  entire home directory and root filesystem.
+  overhead is negligible, see `PERFORMANCE.md`). See `PERFORMANCE.md`
+  for real-world timings, including scans of an entire home directory
+  and root filesystem.
 - `memo <n>` (`./memo`) -- computes `fib(n)` via recursion memoized in the
   table, demonstrating it as a cache: `rh_has`/`rh_get` for lookups,
   `rh_set` to populate a miss, and `rh_clear` to invalidate one entry
@@ -94,9 +91,6 @@ patterns instead of one superseding the others:
   syscalls beyond what the process already holds in memory, and no
   heap allocation for values at all -- each value is a borrowed
   pointer into the existing environment strings, not a copy.
-
-`memo`, `wordfreq`, `netifs`, and `environ` also accept the same
-`--resize-threshold PERCENT` option as `scan`.
 
 ## Building
 
@@ -221,33 +215,18 @@ if (!rh_set (table, key, value))
     // Allocation failed -- the key/value pair was *not* stored,
     // including if a required resize couldn't be honored: rh_set()
     // fails the whole operation rather than silently exceeding the
-    // table's configured resize threshold.
+    // table's 80% load-factor growth trigger.
 }
 ```
 
 Check these return values wherever allocation failure is a real
 possibility you need to handle.
 
-## Resize threshold
-
 The table doubles capacity whenever the next insertion would push its
-load factor past a threshold, 80% by default. Change it per-table with
-`rh_set_resize_threshold()`; `rh_resize_threshold()` reads it back:
-
-```c
-rh_set_resize_threshold (table, 70);   // grow sooner, pack tighter probing
-rh_set_resize_threshold (table, 90);   // grow later, denser table
-
-unsigned current = rh_resize_threshold (table);   // 1-100
-```
-
-Valid values are 1-100; anything else is rejected (the function
-returns `false` and leaves the threshold unchanged). Takes effect
-lazily -- it only affects the table's next insertion, not immediately.
-See `PERFORMANCE.md`'s "Configurable resize threshold" section before
-reaching for this: within the 70-90% range, lower is consistently a
-little faster and higher is consistently a little denser, but there's
-no hidden value in between that beats the 80% default on both counts.
+load factor past 80%, a fixed threshold -- not configurable, since
+`PERFORMANCE.md`'s "Configurable resize threshold" section found no
+value in the 70-90% range that beats 80% on both speed and density at
+once, so the added API surface wasn't worth it.
 
 ## Thread safety
 

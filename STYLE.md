@@ -110,10 +110,9 @@ local variables alike:
 ```c
 struct RHTable_struct
 {
-    RHEntry*     entries;
-    size_t       capacity;
-    size_t       count;
-    unsigned int resize_threshold_percent;
+    RHEntry* entries;
+    size_t   capacity;
+    size_t   count;
 };
 ```
 
@@ -130,7 +129,7 @@ struct RHTable_struct
   at all, `char`/`double` are already complete, distinct base types.
 - `UPPER_SNAKE_CASE` for macros (`RH_CAPACITY`, `CHECK`,
   `TEST_COUNT`) and `enum` constants (`EMPTY`/`USED`,
-  `OPT_RESIZE_THRESHOLD`) — everything else (functions, variables,
+  `OPT_PROBE_STATS`) — everything else (functions, variables,
   struct/typedef names) is `snake_case` or, for the library's own public
   `RH`-prefixed opaque types, a run-together `RHWord` form (`RHTable`,
   `RHProbeStats`). The same `RHWord` form also covers internal types that

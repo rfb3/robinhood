@@ -135,13 +135,13 @@ on either platform.
 ## Growth behavior
 
 The table doubles capacity (always a power of two) whenever inserting the
-next entry would push the load factor past a configurable resize
-threshold -- 80% by default (`rh_maybe_grow` in `src/robinhood.c`; see
-`rh_resize_threshold()`/`rh_set_resize_threshold()` in `include/robinhood.h`,
-and "Configurable resize threshold" below for whether any other value
-in that range is actually worth choosing). Growing 64 keys into a table
-started at capacity 4 produces this doubling sequence at the default
-threshold, confirmed against the actual implementation:
+next entry would push the load factor past a fixed 80% threshold
+(`rh_maybe_grow` in `src/robinhood.c`; see "Configurable resize
+threshold" below for the experiment confirming no other value in the
+70-90% range is worth choosing instead, which is why this isn't
+configurable). Growing 64 keys into a table started at capacity 4
+produces this doubling sequence at that threshold, confirmed against
+the actual implementation:
 
 | Capacity | Reached at insertion # |
 |---:|---:|
@@ -381,12 +381,12 @@ performance workaround.
 
 ## Configurable resize threshold: does anything beat the 80% default?
 
-`rh_resize_threshold()`/`rh_set_resize_threshold()` (see
-`include/robinhood.h`) make the 80% growth trigger above configurable,
-1-100%, and every example (`scan --resize-threshold PERCENT` and the
-same flag on `memo`/`wordfreq`/`netifs`/`environ`) exposes it. With
-that in place: does any value between 70% and 90%, in 5% steps,
-meaningfully outperform the 80% default?
+The library briefly made the 80% growth trigger above configurable
+per-table (`rh_resize_threshold()`/`rh_set_resize_threshold()`, with a
+`--resize-threshold PERCENT` flag on every example) before this
+experiment showed the answer below, at which point it was removed
+again in favor of a fixed 80%: does any value between 70% and 90%, in
+5% steps, meaningfully outperform the 80% default?
 
 **First attempt, and why it didn't work:** the obvious experiment is
 `scan --resize-threshold N --probe-stats ~` for each `N`. Run against
@@ -414,12 +414,13 @@ about the underlying trade-off.
 **Second attempt: hold capacity fixed, vary only the real load
 factor.** To see the actual trade-off, a table needs to reach each
 target load factor without an intervening doubling changing the
-denominator out from under the comparison. Fixed capacity at
-2^20 (1,048,576), `rh_set_resize_threshold(table, 100)` to disable
-further growth, then filled to exactly 70/75/80/85/90% of that
-capacity from empty, timing insertion and both hit and miss lookups
-over the resulting table (5 runs per level, averaged; synthetic
-`"key-%08ld-%04ld"` keys, not filesystem paths):
+denominator out from under the comparison. This used a scratch build
+of the then-configurable threshold, set to 100% to disable further
+growth, with a table fixed at capacity 2^20 (1,048,576) and filled to
+exactly 70/75/80/85/90% of that capacity from empty, timing insertion
+and both hit and miss lookups over the resulting table (5 runs per
+level, averaged; synthetic `"key-%08ld-%04ld"` keys, not filesystem
+paths):
 
 | Load factor | Insert (ns/op) | Get hit (ns/op) | Get miss (ns/op) | Probe mean | Probe max | Probe stddev |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -452,8 +453,9 @@ exchange for probe chains that are still short in absolute terms (mean
 tens of nanoseconds. Given the real-world `scan` numbers above, where
 the entire walk is dominated by filesystem I/O (user CPU time ~0.46s
 against a ~15s wall-clock walk), this whole trade-off is very unlikely
-to be visible in practice for this library's own example workloads --
-`rh_set_resize_threshold()` is here for callers whose access pattern
-actually is hash-table-bound and wants to trade memory for speed (lower
-threshold) or vice versa (higher threshold), not because 80% needed
-fixing.
+to be visible in practice for this library's own example workloads.
+This is exactly why the configurable threshold was removed again after
+this experiment rather than kept: no fixed value anyone would actually
+pick beats 80%, so the extra API (a setter, a getter, a CLI flag on
+every example) was pure surface area for a knob nothing in this
+library's own testing ever wanted to turn.

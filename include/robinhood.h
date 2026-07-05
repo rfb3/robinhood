@@ -166,18 +166,6 @@ extern void
 rh_probe_stats(RHTable table, struct RHProbeStats* out_stats);
 
 ///
-/// Returns the table's current resize threshold, as a percentage
-/// (1-100) of capacity: the table grows just before an insertion
-/// would push its load factor past this value. Defaults to 80. See
-/// rh_set_resize_threshold() to change it.
-///
-/// @param table  The table to query.
-/// @return       The table's current resize threshold, 1-100.
-///
-extern unsigned int
-rh_resize_threshold(RHTable table);
-
-///
 /// Inserts `key` with `value`, or updates the value if `key` is
 /// already present. The table keeps its own copy of `key` (the
 /// caller's string is not retained); `value` itself is stored as
@@ -190,29 +178,11 @@ rh_resize_threshold(RHTable table);
 /// @return       true if the key/value pair is now in the table; false
 ///               on allocation failure -- including a failed resize,
 ///               which fails the whole operation rather than
-///               silently exceeding the table's configured
-///               resize threshold.
+///               silently exceeding the table's 80% load-factor
+///               growth trigger.
 ///
 extern bool
 rh_set(RHTable table, const char* key, void* value);
-
-///
-/// Changes the table's resize threshold -- see rh_resize_threshold().
-/// A lower value keeps probe chains shorter at the cost of more
-/// frequent resizing (and more wasted capacity); a higher value packs
-/// the table tighter at the cost of longer probe chains as it fills
-/// up. Takes effect lazily: it only affects the table's next
-/// insertion, and does not itself trigger an immediate resize even if
-/// the table's current load factor already exceeds the new value.
-///
-/// @param table    The table to configure.
-/// @param percent  The new resize threshold, which must be between 1
-///                 and 100 inclusive.
-/// @return         true if `percent` was valid and applied, false
-///                 (leaving the threshold unchanged) otherwise.
-///
-extern bool
-rh_set_resize_threshold(RHTable table, unsigned int percent);
 
 // ===========================================================================
 // Iterator operations

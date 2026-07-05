@@ -90,22 +90,19 @@ walk_body(int                    dir_fd,
 int
 main(int argc, char** argv)
 {
-    bool         cross_mounts          = false;
-    bool         follow_symlinks       = false;
-    bool         probe_stats           = false;
-    bool         have_resize_threshold = false;
-    unsigned int resize_threshold      = 0;
-    const char*  root                  = NULL;
-    const char** excludes              = NULL;
-    size_t       excludes_count        = 0;
+    bool         cross_mounts    = false;
+    bool         follow_symlinks = false;
+    bool         probe_stats     = false;
+    const char*  root            = NULL;
+    const char** excludes        = NULL;
+    size_t       excludes_count  = 0;
 
     enum
     {
         OPT_CROSS_MOUNTS = 256,
         OPT_FOLLOW_SYMLINKS,
         OPT_EXCLUDE,
-        OPT_PROBE_STATS,
-        OPT_RESIZE_THRESHOLD
+        OPT_PROBE_STATS
     };
 
     static const struct option long_options [] = {
@@ -113,7 +110,6 @@ main(int argc, char** argv)
         {"follow-symlinks", no_argument, NULL, OPT_FOLLOW_SYMLINKS},
         {"exclude", required_argument, NULL, OPT_EXCLUDE},
         {"probe-stats", no_argument, NULL, OPT_PROBE_STATS},
-        {"resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}};
 
@@ -132,10 +128,6 @@ main(int argc, char** argv)
             break;
         case OPT_PROBE_STATS:
             probe_stats = true;
-            break;
-        case OPT_RESIZE_THRESHOLD:
-            resize_threshold      = (unsigned int)(strtoul(optarg, NULL, 10));
-            have_resize_threshold = true;
             break;
         case OPT_EXCLUDE:
         {
@@ -193,18 +185,6 @@ main(int argc, char** argv)
 
     RHTable table = rh_create(1024);
 
-    if (have_resize_threshold &&
-        !rh_set_resize_threshold(table, resize_threshold))
-    {
-        fprintf(stderr,
-                "%s: invalid --resize-threshold value '%u'"
-                " (must be 1-100)\n",
-                argv [0], resize_threshold);
-        rh_destroy(&table);
-        free(excludes);
-        return 2;
-    }
-
     struct scan_context context;
     context.cross_mounts        = cross_mounts;
     context.follow_symlinks     = follow_symlinks;
@@ -231,13 +211,11 @@ main(int argc, char** argv)
 
     printf("%s: %zu entries, capacity %zu, %.3f seconds"
            " (cross_mounts=%s, follow_symlinks=%s, excludes=%zu,"
-           " unreadable=%zu, excluded_roots=%zu, store_failed=%zu,"
-           " resize_threshold=%u)\n",
+           " unreadable=%zu, excluded_roots=%zu, store_failed=%zu)\n",
            root, rh_count(table), rh_capacity(table), elapsed_seconds,
            cross_mounts ? "yes" : "no", follow_symlinks ? "yes" : "no",
            excludes_count, context.unreadable_count,
-           context.excluded_root_count, context.store_failed_count,
-           rh_resize_threshold(table));
+           context.excluded_root_count, context.store_failed_count);
 
     if (probe_stats)
     {
@@ -328,8 +306,7 @@ print_usage(const char* program_name)
     fprintf(stderr,
             "usage: %s [--cross-mounts] [--follow-symlinks]"
             " [--exclude PATH]...\n"
-            "       [--probe-stats] [--resize-threshold PERCENT]"
-            " <directory>\n"
+            "       [--probe-stats] <directory>\n"
             "\n"
             "  --cross-mounts     do not stop at filesystem/mount"
             " boundaries.\n"
@@ -349,12 +326,7 @@ print_usage(const char* program_name)
             "                     Default: don't -- see PERFORMANCE.md"
             " for why\n"
             "                     that's the default despite negligible"
-            " overhead.\n"
-            "  --resize-threshold PERCENT\n"
-            "                     load factor (1-100) at which the"
-            " table grows.\n"
-            "                     Default: 80 -- see"
-            " rh_set_resize_threshold().\n",
+            " overhead.\n",
             program_name);
 }
 

@@ -8,7 +8,6 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <getopt.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -124,36 +123,7 @@ format_flags(char* buffer, size_t buffer_size, unsigned int flags)
 int
 main(int argc, char** argv)
 {
-    bool         have_resize_threshold = false;
-    unsigned int resize_threshold      = 0;
-
-    enum
-    {
-        OPT_RESIZE_THRESHOLD = 256
-    };
-
-    static const struct option long_options [] = {
-        {"resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD},
-        {NULL, 0, NULL, 0}};
-
-    opterr = 0;
-
-    int opt;
-    while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1)
-    {
-        switch (opt)
-        {
-        case OPT_RESIZE_THRESHOLD:
-            resize_threshold      = (unsigned int)(strtoul(optarg, NULL, 10));
-            have_resize_threshold = true;
-            break;
-        default:
-            print_usage(argv [0]);
-            return 2;
-        }
-    }
-
-    if (optind != argc)
+    if (argc != 1)
     {
         print_usage(argv [0]);
         return 2;
@@ -168,18 +138,6 @@ main(int argc, char** argv)
     }
 
     RHTable table = rh_create(32);
-
-    if (have_resize_threshold &&
-        !rh_set_resize_threshold(table, resize_threshold))
-    {
-        fprintf(stderr,
-                "%s: invalid --resize-threshold value '%u'"
-                " (must be 1-100)\n",
-                argv [0], resize_threshold);
-        freeifaddrs(addresses);
-        rh_destroy(&table);
-        return 2;
-    }
 
     for (struct ifaddrs* entry = addresses; entry != NULL;
          entry                 = entry->ifa_next)
@@ -288,7 +246,7 @@ static void
 print_usage(const char* program_name)
 {
     fprintf(stderr,
-            "usage: %s [--resize-threshold PERCENT]\n"
+            "usage: %s\n"
             "\n"
             "Enumerates this machine's network interfaces via"
             " getifaddrs(3),\n"
@@ -300,9 +258,6 @@ print_usage(const char* program_name)
             " are skipped,\n"
             "since their sockaddr representation isn't portable"
             " (sockaddr_dl\n"
-            "on BSD/macOS vs. sockaddr_ll on Linux).\n"
-            "--resize-threshold PERCENT sets the table's resize"
-            " threshold (1-100,\n"
-            "default 80) -- see rh_set_resize_threshold().\n",
+            "on BSD/macOS vs. sockaddr_ll on Linux).\n",
             program_name);
 }

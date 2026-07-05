@@ -6,8 +6,6 @@
 
 #include "robinhood.h"
 
-#include <getopt.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,53 +42,13 @@ compare_keys(const void* left, const void* right)
 int
 main(int argc, char** argv)
 {
-    bool         have_resize_threshold = false;
-    unsigned int resize_threshold      = 0;
-
-    enum
-    {
-        OPT_RESIZE_THRESHOLD = 256
-    };
-
-    static const struct option long_options [] = {
-        {"resize-threshold", required_argument, NULL, OPT_RESIZE_THRESHOLD},
-        {NULL, 0, NULL, 0}};
-
-    opterr = 0;
-
-    int opt;
-    while ((opt = getopt_long(argc, argv, "", long_options, NULL)) != -1)
-    {
-        switch (opt)
-        {
-        case OPT_RESIZE_THRESHOLD:
-            resize_threshold      = (unsigned int)(strtoul(optarg, NULL, 10));
-            have_resize_threshold = true;
-            break;
-        default:
-            print_usage(argv [0]);
-            return 2;
-        }
-    }
-
-    if (optind != argc)
+    if (argc != 1)
     {
         print_usage(argv [0]);
         return 2;
     }
 
     RHTable table = rh_create(64);
-
-    if (have_resize_threshold &&
-        !rh_set_resize_threshold(table, resize_threshold))
-    {
-        fprintf(stderr,
-                "%s: invalid --resize-threshold value '%u'"
-                " (must be 1-100)\n",
-                argv [0], resize_threshold);
-        rh_destroy(&table);
-        return 2;
-    }
 
     size_t store_failed = 0;
 
@@ -174,7 +132,7 @@ static void
 print_usage(const char* program_name)
 {
     fprintf(stderr,
-            "usage: %s [--resize-threshold PERCENT]\n"
+            "usage: %s\n"
             "\n"
             "Walks this process's environment into an RHTable"
             " (name -> value)\n"
@@ -184,9 +142,6 @@ print_usage(const char* program_name)
             " only example\n"
             "that needs no heap allocation at all beyond what"
             " rh_set() itself\n"
-            "does for its key copies.\n"
-            "--resize-threshold PERCENT sets the table's resize"
-            " threshold (1-100,\n"
-            "default 80) -- see rh_set_resize_threshold().\n",
+            "does for its key copies.\n",
             program_name);
 }
