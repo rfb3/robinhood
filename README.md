@@ -230,10 +230,18 @@ once, so the added API surface wasn't worth it.
 
 ## Thread safety
 
-Not thread-safe: concurrent operations on the *same* table or iterator
-need a lock (or other synchronization) you provide yourself. Different
-tables can be used concurrently from different threads with no extra
-care, since they share no state.
+Not thread-safe internally, by design: the library holds no internal
+lock and no shared global state (not even for allocation-failure
+reporting -- see "Allocation failure" above), so different tables can
+be used concurrently from different threads with no extra care at all.
+Concurrent operations on the *same* table or iterator are entirely
+possible, but not built in -- wrapping your own lock (or other
+synchronization) around those calls is on you. This is deliberate, not
+an oversight: a lock owned by the table would only protect one call at
+a time, not the compound check-then-act sequences (e.g. `rh_has` then
+`rh_set`) that real callers actually need protected, so it would add a
+real dependency and cost for a guarantee that doesn't cover the common
+case anyway.
 
 ## Documentation
 
