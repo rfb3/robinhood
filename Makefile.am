@@ -130,8 +130,12 @@ test: check
 # object (robinhood.gcno) -- combined compile-and-link instead names
 # them after the *executable* on this platform's clang (e.g.
 # tester-coverage-robinhood.gcno), which gcov won't find when later
-# asked to report on plain "robinhood.c".
-COVERAGE_FLAGS = --coverage -O0 -g
+# asked to report on plain "robinhood.c". -DRH_COVERAGE_BUILD makes
+# tests/tester.c's run_test_isolated() call __gcov_dump() before its
+# forked children _exit() -- _exit() bypasses the atexit()-registered
+# gcov dump, so without this every test category's coverage (they all
+# run inside those children) would be silently lost, not just reduced.
+COVERAGE_FLAGS = --coverage -O0 -g -DRH_COVERAGE_BUILD
 
 coverage:
 	$(RM) *.gcda *.gcno *.gcov
