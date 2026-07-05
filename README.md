@@ -200,8 +200,6 @@ format. `make docs` (requires `doxygen` -- `brew install doxygen` /
 nothing else here depends on it, and it's not part of `make`/`make
 test`.
 
-
-
 The same generated docs are published at
 [rfb3.github.io/robinhood][gh-pages] -- rebuilt and redeployed
 automatically on every push to `main` (see
