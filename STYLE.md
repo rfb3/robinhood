@@ -23,6 +23,9 @@ when touching existing code nearby.
   start with a literal tab (required Make syntax, not a style choice).
 - Every `if`/`for`/`while`/etc. gets curly braces, even for a
   single-statement body. No brace-less singleton blocks.
+- Prefer `while (true)` over `for (;;)` for an intentionally infinite
+  loop — `true` says what's happening, where `for (;;)`'s three empty
+  clauses only say what *isn't*.
 - Opening curly braces always go on their own line, never a "hanging"
   brace at the end of the previous line — for blocks and function bodies
   alike.
