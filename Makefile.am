@@ -34,7 +34,7 @@ TESTS = tester
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = robinhood.pc
 
-EXTRA_DIST = README.md STYLE.md PERFORMANCE.md LICENSE Doxyfile
+EXTRA_DIST = README.md STYLE.md PERFORMANCE.md LICENSE Doxyfile .clang-format
 
 # Bypasses the built library, so this doesn't fit the _PROGRAMS/
 # _LIBRARIES model above: gcov/ASan+UBSan both need their instrumentation
@@ -66,6 +66,23 @@ docs:
 	}
 	doxygen $(srcdir)/Doxyfile
 	@echo "Generated docs/html/index.html"
+
+# Optional -- not part of `all`/`check`. Reformats in place per
+# .clang-format at the repo root (clang-format finds it automatically,
+# searching upward from each file's own directory). See STYLE.md and
+# .clang-format's own header comment for what this does and doesn't
+# cover -- it doesn't replicate every hand-tuned convention (e.g. a
+# short signature that already fits on one line loses its forced
+# multi-line, column-aligned form), so review the diff rather than
+# trusting it blindly on existing, hand-formatted code.
+format:
+	@command -v clang-format >/dev/null 2>&1 || { \
+	    echo "format: clang-format not found -- install it" \
+	         "(e.g. 'brew install clang-format' or 'apt install clang-format')" >&2; \
+	    exit 1; \
+	}
+	clang-format -i $(srcdir)/include/*.h $(srcdir)/src/*.c \
+	                 $(srcdir)/tests/*.c $(srcdir)/examples/*.c
 
 clean-local:
 	$(RM) -r docs
@@ -114,7 +131,7 @@ coverage-html: coverage
 	genhtml coverage.info --output-directory coverage-html
 	@echo "Generated coverage-html/index.html"
 
-.PHONY: test sanitize docs coverage coverage-html
+.PHONY: test sanitize docs format coverage coverage-html
 
 tarball:
 	( cd .. ; tar cf - robinhood | gzip > robinhood-`date +'%Y%m%d-%H%M-%Z'`.tar.gz )
