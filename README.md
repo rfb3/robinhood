@@ -110,6 +110,8 @@ make coverage   # rebuild and run under gcov, report line/branch coverage
 make format     # reformat .c/.h files per .clang-format
 make autogen    # regenerate configure/Makefile.in/etc. after editing
                 # configure.ac/Makefile.am
+make TAGS       # generate an Emacs TAGS file (etags)
+make ctags      # generate a vi/Vim-style tags file (ctags)
 make install    # install the library, header, and pkg-config file to
                 # $PREFIX (or $DESTDIR$PREFIX, for staged installs)
 make dist       # produce a robinhood-<version>.tar.gz source tarball
@@ -120,6 +122,13 @@ Run `make format` periodically as you edit -- see `.clang-format`'s
 own header comment for what it doesn't cover (it won't replicate
 every hand-tuned convention, so review the diff rather than trusting
 it blindly on existing, hand-formatted code).
+
+`make TAGS`/`make ctags` aren't project-specific additions -- automake
+generates both automatically, using whichever `etags`/`ctags` it finds
+on `PATH` at `./configure` time, for real jump-to-definition navigation
+(`M-.` in Emacs, `Ctrl-]` in vi/Vim) instead of scanning section
+banners by eye. Neither is removed by `make clean` (only
+`make distclean`), so both are gitignored.
 
 For many, once you clone the repo or download and unpack a `.zip` or
 `.tar.gz`, it will be the fairly standard:
@@ -199,28 +208,25 @@ them (see "Building" above for why). Build outputs (the library and
 the example/test binaries) land directly at the repo root, next to
 `Makefile.am` -- there's no separate `bin/`/`lib/` output directory.
 
-## Warnings
+## Allocation failure
 
-By default, the library prints a message to stderr if an internal
-allocation fails (inside `rh_create`/`rh_set`/`rh_maybe_grow`/
-`rhi_create`) and returns a failure indication (`NULL`/no-op, per the
-function) rather than aborting. Install your own handler to log
-these differently, or pass `NULL` to suppress them entirely:
+Every function that might need to allocate reports failure directly
+through its return value rather than aborting or logging anything
+itself: `rh_create()`/`rhi_create()` return `NULL`, and `rh_set()`
+returns `bool` --
 
 ```c
-void my_handler (const char* message)
+if (!rh_set (table, key, value))
 {
-    fprintf (log_file, "robinhood: %s\n", message);
+    // Allocation failed -- the key/value pair was *not* stored,
+    // including if a required resize couldn't be honored: rh_set()
+    // fails the whole operation rather than silently exceeding the
+    // table's configured resize threshold.
 }
-
-rh_set_warning_handler (my_handler);   // or rh_set_warning_handler (NULL) to suppress
-...
-rh_set_warning_handler (rh_default_warning_handler);   // restore default behavior
 ```
 
-This is a single, process-wide setting rather than a per-table one --
-`rh_create()` can itself fail to allocate the table, before there's
-any `RHTable` to attach a per-instance setting to.
+Check these return values wherever allocation failure is a real
+possibility you need to handle.
 
 ## Resize threshold
 
@@ -249,11 +255,6 @@ Not thread-safe: concurrent operations on the *same* table or iterator
 need a lock (or other synchronization) you provide yourself. Different
 tables can be used concurrently from different threads with no extra
 care, since they share no state.
-
-The one exception is `rh_set_warning_handler()`, which is process-wide
-global state rather than per-table -- see its own doc comment in
-`include/robinhood.h` for the specific (narrower) guarantee it makes
-under concurrent use.
 
 ## Documentation
 
