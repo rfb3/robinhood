@@ -61,11 +61,10 @@ patterns instead of one superseding the others:
   `--follow-symlinks`, `--exclude PATH` (repeatable), `--probe-stats`
   (prints Robin Hood probe-depth statistics -- mean/max/stddev and a
   histogram -- after the walk; off by default, though measured
-  overhead is negligible, see
-  <a href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a>). See
-  <a href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a> for
-  real-world timings, including scans of an entire home directory and
-  root filesystem.
+  overhead is negligible. See <a
+  href="PERFORMANCE.md"><code>PERFORMANCE.md</code></a> for that and
+  other real-world timings, including scans of an entire home
+  directory and root filesystem.
 - `memo <n>` (`./memo`) -- computes `fib(n)` via recursion memoized in the
   table, demonstrating it as a cache: `rh_has`/`rh_get` for lookups,
   `rh_set` to populate a miss, and `rh_clear` to invalidate one entry
