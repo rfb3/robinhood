@@ -50,15 +50,10 @@ fight standard tooling.
 - When ordering lists of things, if there is no need for any particular
   ordering, put things in alphabetical/lexicographic order. Everything from
   dependencies in a makefile to ordering of function definitions in source
-  files. Two recognized needs for a different order: grouping a `static`
+  files. One recognized need for a different order: grouping a `static`
   helper immediately before the function(s) that call it, when it's only
   ever used by one nearby group (`src/robinhood.c`: `rhi_advance_to_used`
-  right before `rhi_advance`/`rhi_create`/`rhi_reset`, its only callers);
-  and placing a definition next to the global variable that references it
-  as an initializer (`src/robinhood.c`: `rh_default_warning_handler`,
-  placed next to `static RHWarningHandler warning_handler =
-  rh_default_warning_handler;` rather than in strict alphabetical order
-  among the other `rh_*` functions).
+  right before `rhi_advance`/`rhi_create`/`rhi_reset`, its only callers).
 - `*` in a pointer type binds to the type, not the variable name: `char*
   key`, never `char *key`. Applies everywhere a pointer type appears —
   declarations, parameters, casts, struct fields alike.
@@ -134,7 +129,7 @@ struct RHTable_struct
   `signed char`/`long double`: those aren't a modifier-plus-implied-`int`
   at all, `char`/`double` are already complete, distinct base types.
 - `UPPER_SNAKE_CASE` for macros (`RH_CAPACITY`, `CHECK`,
-  `WARNING_BUFFER_SIZE`) and `enum` constants (`EMPTY`/`USED`,
+  `TEST_COUNT`) and `enum` constants (`EMPTY`/`USED`,
   `OPT_RESIZE_THRESHOLD`) — everything else (functions, variables,
   struct/typedef names) is `snake_case` or, for the library's own public
   `RH`-prefixed opaque types, a run-together `RHWord` form (`RHTable`,
