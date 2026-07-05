@@ -20,8 +20,8 @@
 // build_key(char*,size_t,RHTable,const char*,const char*)
 // compare_keys(const void*,const void*)
 // format_flags(char*,size_t,unsigned int)
-// print_usage(const char*)
 // main(int,char**)
+// print_usage(const char*)
 
 //
 // Headers, etc.
@@ -174,34 +174,6 @@ format_flags (char*        buffer,
 
         position += (size_t)written;
     }
-}
-
-//
-// print_usage(const char*)
-//
-
-static
-void
-print_usage (const char* program_name)
-{
-    fprintf (stderr,
-             "usage: %s [--resize-threshold PERCENT]\n"
-             "\n"
-             "Enumerates this machine's network interfaces via"
-             " getifaddrs(3),\n"
-             "mapping each (interface, address family) pair to its"
-             " address and\n"
-             "flags in an RHTable, then prints them sorted by key."
-             " IPv4/IPv6\n"
-             "addresses only -- link-layer entries (MAC addresses)"
-             " are skipped,\n"
-             "since their sockaddr representation isn't portable"
-             " (sockaddr_dl\n"
-             "on BSD/macOS vs. sockaddr_ll on Linux).\n"
-             "--resize-threshold PERCENT sets the table's resize"
-             " threshold (1-100,\n"
-             "default 80) -- see rh_set_resize_threshold().\n",
-             program_name);
 }
 
 //
@@ -370,4 +342,32 @@ main (int    argc,
     rh_destroy (&table);
 
     return 0;
+}
+
+//
+// print_usage(const char*)
+//
+
+static
+void
+print_usage (const char* program_name)
+{
+    fprintf (stderr,
+             "usage: %s [--resize-threshold PERCENT]\n"
+             "\n"
+             "Enumerates this machine's network interfaces via"
+             " getifaddrs(3),\n"
+             "mapping each (interface, address family) pair to its"
+             " address and\n"
+             "flags in an RHTable, then prints them sorted by key."
+             " IPv4/IPv6\n"
+             "addresses only -- link-layer entries (MAC addresses)"
+             " are skipped,\n"
+             "since their sockaddr representation isn't portable"
+             " (sockaddr_dl\n"
+             "on BSD/macOS vs. sockaddr_ll on Linux).\n"
+             "--resize-threshold PERCENT sets the table's resize"
+             " threshold (1-100,\n"
+             "default 80) -- see rh_set_resize_threshold().\n",
+             program_name);
 }
