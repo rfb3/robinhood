@@ -59,6 +59,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -301,7 +302,7 @@ rh_find_index (RHTable     table,
     size_t   distance = 0;
     RHEntry* entries  = RH_ENTRIES (table);
 
-    for (;;)
+    while (true)
     {
         RHEntry* slot = &entries [pos];
 
