@@ -45,11 +45,6 @@ for (RHIterator it = rhi_create (table); !rhi_is_finished (it); rhi_advance (it)
 }
 ```
 
-The full API is documented in `include/robinhood.h`, in
-[Doxygen](https://www.doxygen.nl/)-style comments -- see
-<a href="#documentation">"Documentation"</a> below to generate
-browsable HTML from them.
-
 ## Example programs
 
 Six small programs exercise the library in different ways -- `scan`,
