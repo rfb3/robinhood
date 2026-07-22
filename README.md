@@ -189,7 +189,7 @@ configure.ac             autoconf input
 Makefile.am              automake input (single, non-recursive --
                          covers the library, examples, and tests)
 robinhood.pc.in          template for the installed pkg-config file
-LICENSE                  Unlicense (public domain)
+LICENSE                  0BSD (No rights reserved, no guarantees)
 ```
 
 `configure`, `Makefile.in`, `build-aux/`, and `m4/` are generated from
@@ -297,6 +297,7 @@ of them.
 
 ## License
 
-[The Unlicense](https://unlicense.org) -- public domain. See
-[`LICENSE`](LICENSE) for the full text. Every `.c`/`.h` file also
-carries an `SPDX-License-Identifier: Unlicense` line.
+[Zero-Clause BSD](https://opensource.org/license/0bsd) -- No rights
+reserved. No guarantees. See [`LICENSE`](LICENSE) for the full
+text. Every `.c`/`.h` file also carries an `SPDX-License-Identifier:
+0BSD` line.

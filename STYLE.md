@@ -232,7 +232,7 @@ this project's own declared types (`RHTable`, `RHIterator`, etc.).
 ## File structure
 
 Every `.c`/`.h` file starts with a one-line file tagline comment,
-immediately followed by an `SPDX-License-Identifier: Unlicense` line
+immediately followed by an `SPDX-License-Identifier: 0BSD` line
 (same comment block), then the rest of the file.
 
 (This project used to delineate every section — headers, type

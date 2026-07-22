@@ -1,7 +1,7 @@
 //
 // robinhood.h - part of robinhood, a hash table with Robin Hood insertion
 //
-// SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: 0BSD
 //
 
 ///
